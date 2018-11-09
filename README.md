@@ -1,16 +1,17 @@
 # pidtree-bcc
 > bcc script for tracing process tree ancestry for connect syscalls
 
-## What `pidtree-bcc` utilizes the [bcc
-toolchain](https://github.com/iovisor/bcc) to create kprobes for (currently
-only) tcpv4 connect syscalls, and tracing the ancestry of the process that made
-the syscall.
+## What
+`pidtree-bcc` utilizes the [bcc toolchain](https://github.com/iovisor/bcc) to
+create kprobes for (currently only) tcpv4 connect syscalls, and tracing the
+ancestry of the process that made the syscall.
 
 It also aims to have a limited set of in-kernel filtering features in order to
 prevent excessive logging for things like loopback and RFC1918 `connect`s
 
-## Why Security monitoring purposes. ML based products like Amazon's GuardDuty
-will tell you when hosts in your infrastructure have made "anomolous" outbound
+## Why 
+Security monitoring purposes. ML based products like Amazon's GuardDuty will
+tell you when hosts in your infrastructure have made "anomolous" outbound
 requests, but often these are as-intended but not known about by the team
 investigating the network traffic. Because of the transient nature of processes,
 often any useful context is lost by the time investigation can occur.
@@ -43,10 +44,15 @@ associated with the process.
   package installed on my machine - python2 worked but python3 didn't. I'll fix
   that :)
 
-## Dependencies See the installation instructions for
-[bcc](https://github.com/iovisor/bcc)
+## Dependencies 
+See the installation instructions for [bcc](https://github.com/iovisor/bcc)
 
-## Usage ``` make source venv/bin/activate sudo python main.py ```
+## Usage 
+```
+make
+source venv/bin/activate
+sudo python main.py
+```
 
 ... and you should see json output detailing the process tree for any process
 making TCP ipv4 `connect` syscalls like this one of me pushing the repo to
@@ -56,8 +62,8 @@ github:
 {"proctree": [[15808, "/usr/bin/ssh git@github.com git-receive-pack 'oholiab/pidtree-bcc'", "oholiab"], [15807, "git push origin master", "oholiab"], [31438, "-zsh", "oholiab"], [696, "tmux", "oholiab"], [1, "/usr/lib/systemd/systemd --system --deserialize 32", "root"]], "daddr": "140.82.118.4", "pid": 15808, "port": 22, "error": ""}
 ```
 
-. Notably you'll not see any (in theory) for the 127/8, 10/8 or 192.168/16
-ranges because of the rudimentary subnet filters I've included in the eBPF
-program. This is obviously not an exhaustive list of loopback or RFC1918
-addresses, and for any generally usable tool I would like to see these ranges,
-ports and protocols be configurable.
+Notably you'll not see any (in theory) for the 127/8, 10/8 or 192.168/16 ranges
+because of the rudimentary subnet filters I've included in the eBPF program.
+This is obviously not an exhaustive list of loopback or RFC1918 addresses, and
+for any generally usable tool I would like to see these ranges, ports and
+protocols be configurable.
