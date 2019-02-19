@@ -1,2 +1,4 @@
 psutil
 pyyaml
+Jinja2
+pytest

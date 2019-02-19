@@ -28,7 +28,8 @@ associated with the process.
   system that it's invoked on as it compiles to eBPF bytecode at runtime. Having
   C compilers on production systems that don't need them is not desirable for
   security reasons. Other eBPF toolchains exist here but this was the easiest
-  way to get started.
+  way to get started. We have mitigated this to some extent by running in a
+  privileged docker container with access to the host's PID namespace.
 * The current implementation is only for TCP and ipv4.
 * The userland daemon is likely susceptible to interference or denial of
   service, however the main aim of the project is to reduce the MTTR for
@@ -37,21 +38,22 @@ associated with the process.
 * It's possible to cause a race condition in the userland daemon in that the
   process or parent process that triggers the kprobe may in fact exit before the
   userland daemon tries to inspect it. Setting niceness values might help?
-* Speaking of suspicious, I'm pretty sure my subnet masking methodology is bad
-  and that I should feel bad, but I wanted to ensure that the demo was
-  performant and I never write C :P
 * This is currently pinned to python2 because of the way that the `bcc` AUR
-  package installed on my machine - python2 worked but python3 didn't. I'll fix
-  that :)
+  package (and subsequently the Ubuntu deb) installed on my machine - python2
+  worked but python3 didn't. I'll fix that :)
 
 ## Dependencies 
 See the installation instructions for [bcc](https://github.com/iovisor/bcc)
 
+Most notably, you need a kernel with eBPF enabled.
+
 ## Usage 
+> CAUTION! The Makefile calls 'docker run' with `--priveleged` so it is your
+> responsibility to ensure that it's not going to do anything untoward!
+
+With docker installed:
 ```
-make
-source venv/bin/activate
-sudo python main.py
+make docker-run
 ```
 
 ... and you should see json output detailing the process tree for any process
@@ -62,8 +64,19 @@ github:
 {"proctree": [[15808, "/usr/bin/ssh git@github.com git-receive-pack 'oholiab/pidtree-bcc'", "oholiab"], [15807, "git push origin master", "oholiab"], [31438, "-zsh", "oholiab"], [696, "tmux", "oholiab"], [1, "/usr/lib/systemd/systemd --system --deserialize 32", "root"]], "daddr": "140.82.118.4", "pid": 15808, "port": 22, "error": ""}
 ```
 
-Notably you'll not see any (in theory) for the 127/8, 10/8 or 192.168/16 ranges
-because of the rudimentary subnet filters I've included in the eBPF program.
-This is obviously not an exhaustive list of loopback or RFC1918 addresses, and
-for any generally usable tool I would like to see these ranges, ports and
-protocols be configurable.
+Notably you'll not see any (in theory) for the 127/8, 169.254/16, 10/8 or
+172.16/12 ranges because of the subnet filters I've included in the
+`example_config.yaml` eBPF program.  This is obviously not an exhaustive list of
+loopback or RFC1918 addresses, so you can use the example configuration to write
+your own.
+
+Additionally, you can include config like:
+
+```yaml
+ports:
+  - 22
+  - 443
+  - 80
+```
+
+To see *only* events for these ports.
