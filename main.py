@@ -123,12 +123,12 @@ def main(args):
         trace = b.trace_readline()
         # print(trace)
         # FIXME: this next line isn't right - sometimes there are more colons
-        json_event = trace.split(":", 2)[2:][0]
-        event = json.loads(json_event)
-        proc = None
-        proctree = []
-        error = ""
         try:
+            json_event = trace.split(":", 2)[2:][0]
+            event = json.loads(json_event)
+            proc = None
+            proctree = []
+            error = ""
             proc = psutil.Process(event["pid"])
             proctree = crawl_process_tree(proc)
             proctree_enriched = list(((p.pid, " ".join(p.cmdline()), p.username()) for p in proctree)),
