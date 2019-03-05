@@ -55,8 +55,8 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
         currsock.delete(&pid);
         return 0;
     }
-    {% if includeports != []: %}
     bpf_probe_read(&dport, sizeof(dport), &skp->__sk_common.skc_dport);
+    {% if includeports != []: %}
     if ( 1 
     {% for port in includeports %}
         && ntohs({{ port }}) != dport 
