@@ -8,6 +8,7 @@ import os
 import socket
 import struct
 from jinja2 import Template
+import contextlib
 
 bpf_text = """
 
@@ -82,6 +83,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", type=str, help="yaml file containing subnet safelist information")
     parser.add_argument("-p", "--print-and-quit", action='store_true', default=False, help="don't run, just print the eBPF program to be compiled and quit")
+    parser.add_argument("-f", "--output_file", type=str, default='-', help="File to output to (default is STDOUT, denoted by -)")
     args = parser.parse_args()
     if args.config is not None and not os.path.exists(args.config):
         os.stderr.write("--config file does not exist")
@@ -92,6 +94,19 @@ def parse_config(config_file):
     if config_file is None:
         return {}
     return yaml.load(open(config_file, 'r').read())
+
+@contextlib.contextmanager
+def smart_open(filename=None):
+    """ Contextmanager for file OR stdout open, shamelessly cribbed from https://stackoverflow.com/questions/17602878/how-to-handle-both-with-open-and-sys-stdout-nicely """
+    if filename and filename != '-':
+        fh = open(filename, 'w')
+    else:
+        fh = sys.stdout
+    try:
+        yield fh
+    finally:
+        if fh is not sys.stdout:
+            fh.close()
 
 def ip_to_int(network):
     """ Takes an IP and returns the unsigned integer encoding of the address """
@@ -119,27 +134,28 @@ def main(args):
         print(expanded_bpf_text)
         sys.exit(0)
     b = BPF(text=expanded_bpf_text)
-    while True:
-        trace = b.trace_readline()
-        # print(trace)
-        # FIXME: this next line isn't right - sometimes there are more colons
-        try:
-            json_event = trace.split(":", 2)[2:][0]
-            event = json.loads(json_event)
-            proc = None
-            proctree = []
-            error = ""
-            proc = psutil.Process(event["pid"])
-            proctree = crawl_process_tree(proc)
-            proctree_enriched = list(((p.pid, " ".join(p.cmdline()), p.username()) for p in proctree)),
-        except Exception as e:
-            error=str(e)
-        print(json.dumps(
-            {"pid": event["pid"],
-             "proctree": proctree_enriched,
-             "daddr": socket.inet_ntoa(struct.pack('<L', int(event["daddr"], 16))),
-             "port": event["dport"],
-             "error": error}))
+    with smart_open(args.output_file) as out:
+        while True:
+            trace = b.trace_readline()
+            # print(trace)
+            # FIXME: this next line isn't right - sometimes there are more colons
+            try:
+                json_event = trace.split(":", 2)[2:][0]
+                event = json.loads(json_event)
+                proc = None
+                proctree = []
+                error = ""
+                proc = psutil.Process(event["pid"])
+                proctree = crawl_process_tree(proc)
+                proctree_enriched = list(((p.pid, " ".join(p.cmdline()), p.username()) for p in proctree)),
+            except Exception as e:
+                error=str(e)
+                print >> out, json.dumps(
+                    {"pid": event["pid"],
+                     "proctree": proctree_enriched,
+                     "daddr": socket.inet_ntoa(struct.pack('<L', int(event["daddr"], 16))),
+                     "port": event["dport"],
+                     "error": error})
     sys.exit(0)
 
 if __name__ == "__main__":

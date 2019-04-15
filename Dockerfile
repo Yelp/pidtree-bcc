@@ -6,4 +6,5 @@ RUN apt-get update && apt-get -y install bcc-tools
 ADD . /work
 WORKDIR /work
 RUN make docker-env
-CMD ./setup.sh && python2 main.py -c example_config.yml
+ENTRYPOINT ['/work/run.sh']
+CMD -c example_config 
