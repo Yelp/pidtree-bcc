@@ -150,12 +150,13 @@ def main(args):
                 proctree_enriched = list(((p.pid, " ".join(p.cmdline()), p.username()) for p in proctree)),
             except Exception as e:
                 error=str(e)
-                print >> out, json.dumps(
-                    {"pid": event["pid"],
-                     "proctree": proctree_enriched,
-                     "daddr": socket.inet_ntoa(struct.pack('<L', int(event["daddr"], 16))),
-                     "port": event["dport"],
-                     "error": error})
+            print >> out, json.dumps(
+                {"pid": event["pid"],
+                 "proctree": proctree_enriched,
+                 "daddr": socket.inet_ntoa(struct.pack('<L', int(event["daddr"], 16))),
+                 "port": event["dport"],
+                 "error": error})
+            out.flush()
     sys.exit(0)
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ docker-run:
 docker-run-with-fifo:
 	mkfifo pidtree-bcc.fifo || true
 	docker build -t pidtree-bcc .
-	docker run -v pidtree-bcc.fifo:/work/pidtree-bcc.fifo --privileged --cap-add sys_admin --pid host --rm -it pidtree-bcc -c example_config.yml -f pidtree-bcc.fifo
+	docker run -v $(CURDIR)/pidtree-bcc.fifo:/work/pidtree-bcc.fifo --privileged --cap-add sys_admin --pid host --rm -it pidtree-bcc -c example_config.yml -f pidtree-bcc.fifo
 
 docker-interactive:
 	# If you want to run manually inside the container, first you need to:
