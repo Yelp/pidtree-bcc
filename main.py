@@ -9,6 +9,7 @@ import socket
 import struct
 from jinja2 import Template
 import contextlib
+from datetime import datetime
 
 bpf_text = """
 
@@ -147,11 +148,12 @@ def main(args):
                 error = ""
                 proc = psutil.Process(event["pid"])
                 proctree = crawl_process_tree(proc)
-                proctree_enriched = list(((p.pid, " ".join(p.cmdline()), p.username()) for p in proctree)),
+                proctree_enriched = list({"pid": p.pid, "cmdline": " ".join(p.cmdline()), "username":  p.username()} for p in proctree)
             except Exception as e:
                 error=str(e)
             print >> out, json.dumps(
-                {"pid": event["pid"],
+                {"timestamp": datetime.utcnow().isoformat() + 'Z',
+                 "pid": event["pid"],
                  "proctree": proctree_enriched,
                  "daddr": socket.inet_ntoa(struct.pack('<L', int(event["daddr"], 16))),
                  "port": event["dport"],
