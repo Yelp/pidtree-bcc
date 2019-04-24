@@ -15,7 +15,7 @@ docker-env:
 
 docker-run:
 	docker build -t pidtree-bcc .
-	docker run --privileged --cap-add sys_admin --pid host --rm -it pidtree-bcc
+	docker run --privileged --cap-add sys_admin --pid host --rm -it pidtree-bcc -c example_config.yml
 
 docker-run-with-fifo:
 	mkfifo pidtree-bcc.fifo || true
