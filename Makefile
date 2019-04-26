@@ -1,4 +1,6 @@
 .PHONY: dev-env
+FIFO=$(CURDIR)/pidtree-bcc.fifo
+DOCKER_ARGS=-v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 
 default: dev-env
 
@@ -15,12 +17,12 @@ docker-env:
 
 docker-run:
 	docker build -t pidtree-bcc .
-	docker run --privileged --cap-add sys_admin --pid host --rm -it pidtree-bcc -c example_config.yml
+	docker run $(DOCKER_ARSG) --rm -it pidtree-bcc -c example_config.yml
 
 docker-run-with-fifo:
 	mkfifo pidtree-bcc.fifo || true
 	docker build -t pidtree-bcc .
-	docker run -v $(CURDIR)/pidtree-bcc.fifo:/work/pidtree-bcc.fifo --privileged --cap-add sys_admin --pid host --rm -it pidtree-bcc -c example_config.yml -f pidtree-bcc.fifo
+	docker run -v $(FIFO):/work/pidtree-bcc.fifo $(DOCKER_ARGS) --rm -it pidtree-bcc -c example_config.yml -f pidtree-bcc.fifo
 
 docker-interactive:
 	# If you want to run manually inside the container, first you need to:
