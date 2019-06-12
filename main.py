@@ -139,13 +139,12 @@ def main(args):
         while True:
             trace = b.trace_readline()
             # print(trace)
-            # FIXME: this next line isn't right - sometimes there are more colons
+            proctree_enriched = []
+            error = ""
             try:
+                # FIXME: this next line isn't right - sometimes there are more colons
                 json_event = trace.split(":", 2)[2:][0]
                 event = json.loads(json_event)
-                proc = None
-                proctree = []
-                error = ""
                 proc = psutil.Process(event["pid"])
                 proctree = crawl_process_tree(proc)
                 proctree_enriched = list({"pid": p.pid, "cmdline": " ".join(p.cmdline()), "username":  p.username()} for p in proctree)
