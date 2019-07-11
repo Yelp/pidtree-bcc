@@ -8,6 +8,10 @@ filters:
     network: 172.16.0.0
     network_mask : 255.240.0.0
     description: "all RFC 1918 172.16/12"
+  - subnet_name: 192168
+    network: 192.168.0.0
+    network_mask : 255.255.0.0
+    description: "all RFC 1918 192.168/16"
   - subnet_name: 169254
     network: 169.254.0.0
     network_mask : 255.255.0.0
