@@ -23,26 +23,30 @@ export CONTROL_CONTENTS
 
 default: pidtree-bcc_$(VERSION).deb
 
-pidtree-bcc_$(TAG).tar:
+src/pidtree-bcc_$(TAG):
 	mkdir -p src
-	git clone $(REMOTE) src/pidtree-bcc
-	cd src/pidtree-bcc && git checkout $(TAG)
-	cd src/pidtree-bcc && docker build -t pidtree-bcc:$(TAG) .
-	docker save -o $@ pidtree-bcc:$(TAG)
+	git clone $(REMOTE) src/pidtree-bcc_$(TAG)
+
+pidtree-bcc_$(TAG).tar: src/pidtree-bcc_$(TAG)
+	cd $< && git checkout $(TAG)
+	cd $< && docker build -t pidtree-bcc:$(TAG) .
+	docker run --name pidtree-bcc_$(TAG) --entrypoint /bin/true pidtree-bcc:$(TAG) 
+	docker export -o $@ pidtree-bcc_$(TAG)
+	docker rm pidtree-bcc_$(TAG)
 
 $(ROOTFS): pidtree-bcc_$(TAG).tar
 	mkdir -p $@
 	tar xf $< --ignore-command-error -C $@/ --exclude='dev/*'
 
-$(ROOTFS)/etc/pidtree-bcc/config.yml: $(CONFIG_SRC)
+$(BUILD_DIR)/etc/pidtree-bcc/config.yml: $(CONFIG_SRC)
 	mkdir -p $(dir $@)
 	cp $< $@
 
-$(ROOTFS)/usr/bin/pidtree-bcc: pidtree-bcc
+$(BUILD_DIR)/usr/bin/pidtree-bcc: pidtree-bcc
 	mkdir -p $(dir $@)
 	cp $< $@
 
-$(ROOTFS)/etc/systemd/system/pidtree-bcc.service: pidtree-bcc.service
+$(BUILD_DIR)/etc/systemd/system/pidtree-bcc.service: pidtree-bcc.service
 	mkdir -p $(dir $@)
 	cp $< $@
 
@@ -50,7 +54,7 @@ $(BUILD_DIR)/DEBIAN:
 	mkdir -p $@
 	echo "$$CONTROL_CONTENTS" > $@/control
 
-pidtree-bcc_$(VERSION).deb: $(BUILD_DIR)/DEBIAN $(ROOTFS)/etc/systemd/system/pidtree-bcc.service $(ROOTFS)/usr/bin/pidtree-bcc $(ROOTFS)/etc/pidtree-bcc/config.yml $(ROOTFS)
+pidtree-bcc_$(VERSION).deb: $(BUILD_DIR)/DEBIAN $(BUILD_DIR)/etc/systemd/system/pidtree-bcc.service $(BUILD_DIR)/usr/bin/pidtree-bcc $(BUILD_DIR)/etc/pidtree-bcc/config.yml $(ROOTFS)
 	dpkg-deb --build $(basename $@)
 
 run-nodocker: $(ROOTFS)
