@@ -6,7 +6,7 @@ ROOTFS_TARGET?=opt/pidtree-bcc-rootfs
 CONFIG_SRC?=$(shell git rev-parse --show-toplevel)/example_config.yml
 BUILD_DIR=pidtree-bcc_$(VERSION)
 ROOTFS=$(BUILD_DIR)/$(ROOTFS_TARGET)
-REMOTE?=git@github.com:oholiab/pidtree-bcc
+REMOTE?=https://github.com/oholiab/pidtree-bcc
 
 define CONTROL_CONTENTS
 Package: pidtree-bcc
