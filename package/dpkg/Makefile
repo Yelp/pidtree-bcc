@@ -6,6 +6,7 @@ ROOTFS_TARGET?=opt/pidtree-bcc-rootfs
 CONFIG_SRC?=$(shell git rev-parse --show-toplevel)/example_config.yml
 BUILD_DIR=pidtree-bcc_$(VERSION)
 ROOTFS=$(BUILD_DIR)/$(ROOTFS_TARGET)
+REMOTE?=git@github.com:oholiab/pidtree-bcc
 
 define CONTROL_CONTENTS
 Package: pidtree-bcc
@@ -23,7 +24,11 @@ export CONTROL_CONTENTS
 default: pidtree-bcc_$(VERSION).deb
 
 pidtree-bcc_$(TAG).tar:
-	docker export -o $@ pidtree-bcc:$(TAG)
+	mkdir -p src
+	git clone $(REMOTE) src/pidtree-bcc
+	cd src/pidtree-bcc && git checkout $(TAG)
+	cd src/pidtree-bcc && docker build -t pidtree-bcc:$(TAG) .
+	docker save -o $@ pidtree-bcc:$(TAG)
 
 $(ROOTFS): pidtree-bcc_$(TAG).tar
 	mkdir -p $@
@@ -52,4 +57,5 @@ run-nodocker: $(ROOTFS)
 	sudo unshare --net --mount --propagation slave --uts --ipc --fork ./enter-ns.sh
 
 clean:
-	rm -rf pidtree-bcc_$(VERSION)
+	rm -rf $(BUILD_DIR)
+	rm -rf pidtree-bcc_$(TAG).tar
