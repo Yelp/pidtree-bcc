@@ -8,11 +8,11 @@ setuptools.setup(
     name="pidtree-bcc",
     version="0.2",
     author="Matt Carroll",
-    author_email="oholiab@grimmwa.re",
+    author_email="mattc@yelp.com",
     description="eBPF-based intrusion detection and audit logging",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/oholiab/pidtree-bcc",
+    url="https://github.com/Yelp/pidtree-bcc",
     packages=setuptools.find_packages(),
     license='BSD 3-clause "New" or "Revised License"',
     classifiers=[

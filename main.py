@@ -97,18 +97,6 @@ def parse_config(config_file):
         return {}
     return yaml.load(open(config_file, 'r').read())
 
-@contextlib.contextmanager
-def smart_open(filename=None):
-    """ Contextmanager for file OR stdout open, shamelessly cribbed from https://stackoverflow.com/questions/17602878/how-to-handle-both-with-open-and-sys-stdout-nicely """
-    if filename and filename != '-':
-        fh = open(filename, 'w')
-    else:
-        fh = sys.stdout
-    try:
-        yield fh
-    finally:
-        if fh is not sys.stdout:
-            fh.close()
 
 def ip_to_int(network):
     """ Takes an IP and returns the unsigned integer encoding of the address """
@@ -126,7 +114,7 @@ def main(args):
         print(expanded_bpf_text)
         sys.exit(0)
     b = BPF(text=expanded_bpf_text)
-    with smart_open(args.output_file) as out:
+    with u.smart_open(args.output_file, mode='w') as out:
         while True:
             trace = b.trace_readline()
             # print(trace)
