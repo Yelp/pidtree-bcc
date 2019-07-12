@@ -10,6 +10,7 @@ import struct
 from jinja2 import Template
 import contextlib
 from datetime import datetime
+from pidtree_bcc import utils as u
 
 bpf_text = """
 
@@ -113,16 +114,6 @@ def ip_to_int(network):
     """ Takes an IP and returns the unsigned integer encoding of the address """
     return struct.unpack('=L', socket.inet_aton(network))[0]
     
-def crawl_process_tree(proc):
-    """ Takes a process and returns all process ancestry until the ppid is 0 """
-    procs = [proc]
-    while True:
-        ppid = procs[len(procs)-1].ppid()
-        if ppid == 0:
-            break
-        procs.append(psutil.Process(ppid))
-    return procs
-    
 def main(args):
     config = parse_config(args.config)
     global bpf_text
@@ -146,7 +137,7 @@ def main(args):
                 json_event = trace.split(":", 2)[2:][0]
                 event = json.loads(json_event)
                 proc = psutil.Process(event["pid"])
-                proctree = crawl_process_tree(proc)
+                proctree = u.crawl_process_tree(proc)
                 proctree_enriched = list({"pid": p.pid, "cmdline": " ".join(p.cmdline()), "username":  p.username()} for p in proctree)
             except Exception as e:
                 error=str(e)

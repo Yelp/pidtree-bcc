@@ -32,3 +32,6 @@ docker-interactive:
 	# Additionally there's a `-p` flag for printing out the templated out eBPF C code so you can debug it
 	docker build -t pidtree-bcc .
 	docker run $(DOCKER_ARGS) --rm -it --entrypoint /bin/bash pidtree-bcc
+
+test:
+	tox
