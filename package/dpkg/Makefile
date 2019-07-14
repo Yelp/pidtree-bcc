@@ -1,7 +1,7 @@
 .PHONY: run-nodocker build
 
 VERSION?=0.2
-TAG=v$(VERSION)
+TAG?=v$(VERSION)
 ROOTFS_TARGET?=opt/pidtree-bcc-rootfs
 CONFIG_SRC?=$(shell git rev-parse --show-toplevel)/example_config.yml
 BUILD_DIR=pidtree-bcc_$(VERSION)
@@ -36,7 +36,7 @@ pidtree-bcc_$(TAG).tar: src/pidtree-bcc_$(TAG)
 
 $(ROOTFS): pidtree-bcc_$(TAG).tar
 	mkdir -p $@
-	tar xf $< --ignore-command-error -C $@/ --exclude='dev/*'
+	tar xpf $< --ignore-command-error -C $@/ --exclude='dev/*'
 
 $(BUILD_DIR)/etc/pidtree-bcc/config.yml: $(CONFIG_SRC)
 	mkdir -p $(dir $@)
