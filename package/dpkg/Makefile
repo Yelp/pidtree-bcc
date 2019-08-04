@@ -36,7 +36,9 @@ pidtree-bcc_$(TAG).tar: src/pidtree-bcc_$(TAG)
 
 $(ROOTFS): pidtree-bcc_$(TAG).tar
 	mkdir -p $@
-	tar xpf $< --ignore-command-error -C $@/ --exclude='dev/*'
+	# This sucks: need to be root to preserve permissions :(
+	# TODO: Investigate building with user namespaces
+	sudo tar xpf $< --ignore-command-error -C $@/ --exclude='dev/*'
 
 $(BUILD_DIR)/etc/pidtree-bcc/config.yml: $(CONFIG_SRC)
 	mkdir -p $(dir $@)
@@ -55,7 +57,7 @@ $(BUILD_DIR)/DEBIAN:
 	echo "$$CONTROL_CONTENTS" > $@/control
 
 pidtree-bcc_$(VERSION).deb: $(BUILD_DIR)/DEBIAN $(BUILD_DIR)/etc/systemd/system/pidtree-bcc.service $(BUILD_DIR)/usr/bin/pidtree-bcc $(BUILD_DIR)/etc/pidtree-bcc/config.yml $(ROOTFS)
-	dpkg-deb --build $(basename $@)
+	sudo dpkg-deb --build $(basename $@)
 
 run-nodocker: $(ROOTFS)
 	sudo unshare --net --mount --propagation slave --uts --ipc --fork ./enter-ns.sh
@@ -63,3 +65,4 @@ run-nodocker: $(ROOTFS)
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf pidtree-bcc_$(TAG).tar
+	-rm *.deb
