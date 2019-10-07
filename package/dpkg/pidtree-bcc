@@ -3,6 +3,9 @@ rootfs=$1
 shift
 args=$@
 mkdir -p $rootfs/proc $rootfs/dev $rootfs/sys
+touch $rootfs/etc/resolv.conf
+mount -o ro,bind /etc/resolv.conf $rootfs/etc/resolv.conf
 mount --rbind /proc $rootfs/proc
 mount --rbind /dev $rootfs/dev
 exec chroot $rootfs /work/run.sh
+umount $rootfs/proc $rootfs/dev $rootfs/etc/resolv.conf

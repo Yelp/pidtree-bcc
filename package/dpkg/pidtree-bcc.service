@@ -3,5 +3,5 @@ Description = pidtree-bcc IDS
 
 [Service]
 TimeoutStartSec=0
-ExecStart=/usr/bin/unshare --net --mount --propagation slave --uts --ipc --fork /usr/bin/pidtree-bcc /opt/pidtree-bcc-rootfs -c /etc/pidtree-bcc/config.yml
+ExecStart=/usr/bin/unshare --mount --propagation slave --uts --ipc --fork /usr/bin/pidtree-bcc /opt/pidtree-bcc-rootfs -c /etc/pidtree-bcc/config.yml
 Restart = always

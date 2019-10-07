@@ -64,5 +64,7 @@ run-nodocker: $(ROOTFS)
 
 clean:
 	rm -rf $(BUILD_DIR)
-	rm -rf pidtree-bcc_$(TAG).tar
+	rm -rf pidtree-bcc_$(TAG)*
+	rm -rf pidtree-bcc_$(TAG)
+	rm -rf src
 	-rm *.deb
