@@ -1,4 +1,4 @@
-psutil
-pyyaml
 Jinja2
+psutil
 pytest
+pyyaml

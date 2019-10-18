@@ -1,5 +1,9 @@
 #!/bin/bash
 
-apt-get update >/dev/null
-apt-get -y install linux-headers-$(uname -r)
-mount -t debugfs debugfs /sys/kernel/debug
+DEBUG_PATH=/sys/kernel/debug
+
+apt-get update
+apt-get -y install linux-headers-"$(uname -r)"
+if  ! mountpoint -q $DEBUG_PATH; then
+    mount -t debugfs debugfs $DEBUG_PATH
+fi
