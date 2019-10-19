@@ -17,7 +17,7 @@ docker-env:
 
 docker-run:
 	docker build -t pidtree-bcc .
-	docker run $(DOCKER_ARSG) --rm -it pidtree-bcc -c example_config.yml
+	docker run $(DOCKER_ARGS) --rm -it pidtree-bcc -c example_config.yml
 
 docker-run-with-fifo:
 	mkfifo pidtree-bcc.fifo || true
@@ -31,4 +31,4 @@ docker-interactive:
 	# `python2 main.py -c example_config.yml`
 	# Additionally there's a `-p` flag for printing out the templated out eBPF C code so you can debug it
 	docker build -t pidtree-bcc .
-	docker run --privileged --cap-add sys_admin --pid host --rm -it --entrypoint /bin/bash pidtree-bcc
+	docker run $(DOCKER_ARGS) --rm -it --entrypoint /bin/bash pidtree-bcc
