@@ -1,15 +1,17 @@
-import sys
 import argparse
-from bcc import BPF
+import contextlib
 import json
-import yaml
-import psutil
 import os
+import psutil
 import socket
 import struct
-from jinja2 import Template
-import contextlib
+import sys
+import yaml
+
+from bcc import BPF
 from datetime import datetime
+from jinja2 import Template
+
 
 bpf_text = """
 
