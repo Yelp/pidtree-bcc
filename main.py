@@ -117,7 +117,8 @@ def ip_to_int(network):
     return struct.unpack('=L', socket.inet_aton(network))[0]
 
 
-def enrich_event(b, event):
+def enrich_event(event):
+    """ Takes the raw event data and enriches by adding process tree metadata """
     proctree_enriched = []
     error = ""
     try:
@@ -135,8 +136,19 @@ def enrich_event(b, event):
         "error": error})
 
 def print_enriched_event(b, out, cpu, data, size):
+    """ A callback for printing enriched event metadata, should be
+    passed as a partial to the callback registering function as
+    `partial(print_enriched_event, b, out)` where `b` is the bpf
+    interface that's being polled and `out` is the output writer
+    (e.g. `sys.stdout`)
+
+    The remaining three arguments (`cpu`, `data` and `size`) are
+    required for the callback, but only `data` is used to pull the
+    event out.
+    """
+
     event = b["events"].event(data)
-    print >> out, json.dumps(enrich_event(b, event))
+    print >> out, json.dumps(enrich_event(event))
     out.flush()
 
 def main(args):
@@ -150,8 +162,7 @@ def main(args):
     if args.print_and_quit:
         print(expanded_bpf_text)
         sys.exit(0)
-    # out = utils.smart_open(args.output_file, mode='w')
-    out = sys.stdout # ain't nobody got time for that
+    out = utils.smart_open(args.output_file, mode='w')
     b = BPF(text=expanded_bpf_text)
     b["events"].open_perf_buffer(partial(print_enriched_event, b, out))
     while True:
