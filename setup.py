@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pidtree-bcc",
-    version="0.2",
+    version="0.3",
     author="Matt Carroll",
     author_email="mattc@yelp.com",
     description="eBPF-based intrusion detection and audit logging",

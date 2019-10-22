@@ -1,16 +1,17 @@
-import sys
 import argparse
-from bcc import BPF
+import contextlib
 import json
-import yaml
-import psutil
 import os
+import psutil
 import socket
 import struct
-from jinja2 import Template
-import contextlib
+import sys
+import yaml
+
+from bcc import BPF
 from datetime import datetime
-from pidtree_bcc import utils as u
+from jinja2 import Template
+from pidtree_bcc import utils
 
 bpf_text = """
 
@@ -114,7 +115,7 @@ def main(args):
         print(expanded_bpf_text)
         sys.exit(0)
     b = BPF(text=expanded_bpf_text)
-    with u.smart_open(args.output_file, mode='w') as out:
+    with utils.smart_open(args.output_file, mode='w') as out:
         while True:
             trace = b.trace_readline()
             # print(trace)
@@ -125,7 +126,7 @@ def main(args):
                 json_event = trace.split(":", 2)[2:][0]
                 event = json.loads(json_event)
                 proc = psutil.Process(event["pid"])
-                proctree = u.crawl_process_tree(proc)
+                proctree = utils.crawl_process_tree(proc)
                 proctree_enriched = list({"pid": p.pid, "cmdline": " ".join(p.cmdline()), "username":  p.username()} for p in proctree)
             except Exception as e:
                 error=str(e)
