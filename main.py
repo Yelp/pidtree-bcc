@@ -1,11 +1,11 @@
 import argparse
-import contextlib
 import json
 import os
 import psutil
 import socket
 import struct
 import sys
+import traceback
 import yaml
 
 from bcc import BPF
@@ -126,14 +126,19 @@ def enrich_event(event):
         proctree = utils.crawl_process_tree(proc)
         proctree_enriched = list({"pid": p.pid, "cmdline": " ".join(p.cmdline()), "username":  p.username()} for p in proctree)
     except Exception as e:
-        error=str(e)
-    return(
-        {"timestamp": datetime.utcnow().isoformat() + 'Z',
+        error=traceback.format_exc()
+    return {
+        "timestamp": datetime.utcnow().isoformat() + 'Z',
         "pid": event.pid,
         "proctree": proctree_enriched,
+        # We're turning a little-endian insigned long ('<L')
+        # representation of the destination address sent from the
+        # kernel to a python `int` and then turning that into a string
+        # representation of an IP address:
         "daddr": socket.inet_ntoa(struct.pack('<L', event.daddr)),
         "port": event.dport,
-        "error": error})
+        "error": error
+    }
 
 def print_enriched_event(b, out, cpu, data, size):
     """ A callback for printing enriched event metadata, should be
