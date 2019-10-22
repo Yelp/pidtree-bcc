@@ -1,15 +1,17 @@
-import sys
 import argparse
-from bcc import BPF
+import contextlib
 import json
-import yaml
-import psutil
 import os
+import psutil
 import socket
 import struct
-from jinja2 import Template
-import contextlib
+import sys
+import yaml
+
+from bcc import BPF
 from datetime import datetime
+from jinja2 import Template
+from pidtree_bcc import utils
 
 bpf_text = """
 
@@ -96,32 +98,10 @@ def parse_config(config_file):
         return {}
     return yaml.load(open(config_file, 'r').read())
 
-@contextlib.contextmanager
-def smart_open(filename=None):
-    """ Contextmanager for file OR stdout open, shamelessly cribbed from https://stackoverflow.com/questions/17602878/how-to-handle-both-with-open-and-sys-stdout-nicely """
-    if filename and filename != '-':
-        fh = open(filename, 'w')
-    else:
-        fh = sys.stdout
-    try:
-        yield fh
-    finally:
-        if fh is not sys.stdout:
-            fh.close()
 
 def ip_to_int(network):
     """ Takes an IP and returns the unsigned integer encoding of the address """
     return struct.unpack('=L', socket.inet_aton(network))[0]
-    
-def crawl_process_tree(proc):
-    """ Takes a process and returns all process ancestry until the ppid is 0 """
-    procs = [proc]
-    while True:
-        ppid = procs[len(procs)-1].ppid()
-        if ppid == 0:
-            break
-        procs.append(psutil.Process(ppid))
-    return procs
     
 def main(args):
     config = parse_config(args.config)
@@ -135,7 +115,7 @@ def main(args):
         print(expanded_bpf_text)
         sys.exit(0)
     b = BPF(text=expanded_bpf_text)
-    with smart_open(args.output_file) as out:
+    with utils.smart_open(args.output_file, mode='w') as out:
         while True:
             trace = b.trace_readline()
             # print(trace)
@@ -146,7 +126,7 @@ def main(args):
                 json_event = trace.split(":", 2)[2:][0]
                 event = json.loads(json_event)
                 proc = psutil.Process(event["pid"])
-                proctree = crawl_process_tree(proc)
+                proctree = utils.crawl_process_tree(proc)
                 proctree_enriched = list({"pid": p.pid, "cmdline": " ".join(p.cmdline()), "username":  p.username()} for p in proctree)
             except Exception as e:
                 error=str(e)

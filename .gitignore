@@ -1,3 +1,7 @@
 notes.md
 venv
 *~
+.tox/*
+pidtree_bcc.egg-info/*
+*.pyc
+**/__pycache__/*
