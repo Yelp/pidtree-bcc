@@ -1,15 +1,16 @@
 import argparse
-import contextlib
 import json
 import os
 import psutil
 import socket
 import struct
 import sys
+import traceback
 import yaml
 
 from bcc import BPF
 from datetime import datetime
+from functools import partial
 from jinja2 import Template
 from pidtree_bcc import utils
 
@@ -26,6 +27,14 @@ bpf_text = """
 {% endfor %}
 
 BPF_HASH(currsock, u32, struct sock *);
+BPF_PERF_OUTPUT(events);
+
+struct connection_t {
+    u32 pid;
+    u32 daddr;
+    u16 dport;
+};
+
 
 int kprobe__tcp_v4_connect(struct pt_regs *ctx, struct sock *sk)
 {
@@ -72,9 +81,13 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
 
     bpf_probe_read(&saddr, sizeof(saddr), &skp->__sk_common.skc_rcv_saddr);
 
-    bpf_trace_printk("{\\"pid\\": %d, \\"daddr\\": \\"%x\\", \\"dport\\": %d}\\n",
-                     pid, daddr, ntohs(dport));
-    
+    struct connection_t connection = {};
+    connection.pid = pid;
+    connection.dport = ntohs(dport);
+    connection.daddr = daddr;
+
+    events.perf_submit(ctx, &connection, sizeof(connection));
+
     currsock.delete(&pid);
 
     return 0;
@@ -102,7 +115,47 @@ def parse_config(config_file):
 def ip_to_int(network):
     """ Takes an IP and returns the unsigned integer encoding of the address """
     return struct.unpack('=L', socket.inet_aton(network))[0]
-    
+
+
+def enrich_event(event):
+    """ Takes the raw event data and enriches by adding process tree metadata """
+    proctree_enriched = []
+    error = ""
+    try:
+        proc = psutil.Process(event.pid)
+        proctree = utils.crawl_process_tree(proc)
+        proctree_enriched = list({"pid": p.pid, "cmdline": " ".join(p.cmdline()), "username":  p.username()} for p in proctree)
+    except Exception as e:
+        error=traceback.format_exc()
+    return {
+        "timestamp": datetime.utcnow().isoformat() + 'Z',
+        "pid": event.pid,
+        "proctree": proctree_enriched,
+        # We're turning a little-endian insigned long ('<L')
+        # representation of the destination address sent from the
+        # kernel to a python `int` and then turning that into a string
+        # representation of an IP address:
+        "daddr": socket.inet_ntoa(struct.pack('<L', event.daddr)),
+        "port": event.dport,
+        "error": error
+    }
+
+def print_enriched_event(b, out, cpu, data, size):
+    """ A callback for printing enriched event metadata, should be
+    passed as a partial to the callback registering function as
+    `partial(print_enriched_event, b, out)` where `b` is the bpf
+    interface that's being polled and `out` is the output writer
+    (e.g. `sys.stdout`)
+
+    The remaining three arguments (`cpu`, `data` and `size`) are
+    required for the callback, but only `data` is used to pull the
+    event out.
+    """
+
+    event = b["events"].event(data)
+    print >> out, json.dumps(enrich_event(event))
+    out.flush()
+
 def main(args):
     config = parse_config(args.config)
     global bpf_text
@@ -114,30 +167,12 @@ def main(args):
     if args.print_and_quit:
         print(expanded_bpf_text)
         sys.exit(0)
+    out = utils.smart_open(args.output_file, mode='w')
     b = BPF(text=expanded_bpf_text)
-    with utils.smart_open(args.output_file, mode='w') as out:
-        while True:
-            trace = b.trace_readline()
-            # print(trace)
-            proctree_enriched = []
-            error = ""
-            try:
-                # FIXME: this next line isn't right - sometimes there are more colons
-                json_event = trace.split(":", 2)[2:][0]
-                event = json.loads(json_event)
-                proc = psutil.Process(event["pid"])
-                proctree = utils.crawl_process_tree(proc)
-                proctree_enriched = list({"pid": p.pid, "cmdline": " ".join(p.cmdline()), "username":  p.username()} for p in proctree)
-            except Exception as e:
-                error=str(e)
-            print >> out, json.dumps(
-                {"timestamp": datetime.utcnow().isoformat() + 'Z',
-                 "pid": event["pid"],
-                 "proctree": proctree_enriched,
-                 "daddr": socket.inet_ntoa(struct.pack('<L', int(event["daddr"], 16))),
-                 "port": event["dport"],
-                 "error": error})
-            out.flush()
+    b["events"].open_perf_buffer(partial(print_enriched_event, b, out))
+    while True:
+        b.perf_buffer_poll()
+    out.close()
     sys.exit(0)
 
 if __name__ == "__main__":

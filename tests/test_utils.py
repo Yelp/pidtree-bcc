@@ -25,9 +25,6 @@ def test_crawl_process_tree(this_proc, this_pid):
     assert tree[-1].pid == 1 # should be init
 
 def test_smart_open(this_file):
-    with utils.smart_open() as out:
-        assert out == sys.stdout
-    with utils.smart_open('-') as out:
-        assert out == sys.stdout
-    with utils.smart_open(this_file) as out:
-        assert out.name == this_file
+    assert utils.smart_open() == sys.stdout
+    assert utils.smart_open('-') == sys.stdout
+    assert utils.smart_open(this_file).name == this_file
