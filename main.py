@@ -27,12 +27,14 @@ bpf_text = """
 {% endfor %}
 
 BPF_HASH(currsock, u32, struct sock *);
+BPF_PERF_OUTPUT(events);
+
 struct connection_t {
     u32 pid;
     u32 daddr;
     u16 dport;
-}
-BPF_PERF_OUTPUT(events);
+};
+
 
 int kprobe__tcp_v4_connect(struct pt_regs *ctx, struct sock *sk)
 {
@@ -81,10 +83,10 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
 
     struct connection_t connection = {};
     connection.pid = pid;
-    connection.port = ntohs(dport);
+    connection.dport = ntohs(dport);
     connection.daddr = daddr;
 
-    events.perf_submit(ctx, &connection, sizeof(connection))
+    events.perf_submit(ctx, &connection, sizeof(connection));
 
     currsock.delete(&pid);
 
@@ -128,11 +130,11 @@ def enrich_event(b, event):
         {"timestamp": datetime.utcnow().isoformat() + 'Z',
         "pid": event.pid,
         "proctree": proctree_enriched,
-        "daddr": socket.inet_ntoa(struct.pack('<L', int(event.daddr, 16))),
+        "daddr": socket.inet_ntoa(struct.pack('<L', event.daddr)),
         "port": event.dport,
         "error": error})
 
-def print_enriched_event(b, cpu, data, size):
+def print_enriched_event(b, out, cpu, data, size):
     event = b["events"].event(data)
     print >> out, json.dumps(enrich_event(b, event))
     out.flush()
@@ -148,11 +150,13 @@ def main(args):
     if args.print_and_quit:
         print(expanded_bpf_text)
         sys.exit(0)
+    # out = utils.smart_open(args.output_file, mode='w')
+    out = sys.stdout # ain't nobody got time for that
     b = BPF(text=expanded_bpf_text)
-    b["events"].open_perf_buffer(partial(print_enriched_event, b))
-    with utils.smart_open(args.output_file, mode='w') as out:
-        while True:
-            b.perf_buffer_poll()
+    b["events"].open_perf_buffer(partial(print_enriched_event, b, out))
+    while True:
+        b.perf_buffer_poll()
+    out.close()
     sys.exit(0)
 
 if __name__ == "__main__":
