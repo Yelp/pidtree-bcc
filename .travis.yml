@@ -1,0 +1,5 @@
+language: generic
+
+install: sudo apt-get -y install docker
+
+script: make itest
