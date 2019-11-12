@@ -1,4 +1,4 @@
-.PHONY: dev-env
+.PHONY: dev-env itest
 FIFO=$(CURDIR)/pidtree-bcc.fifo
 DOCKER_ARGS=-v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 
@@ -32,6 +32,9 @@ docker-interactive:
 	# Additionally there's a `-p` flag for printing out the templated out eBPF C code so you can debug it
 	docker build -t pidtree-bcc .
 	docker run $(DOCKER_ARGS) --rm -it --entrypoint /bin/bash pidtree-bcc
+
+itest:
+	./itest/$@.sh
 
 test:
 	tox
