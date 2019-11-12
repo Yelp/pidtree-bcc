@@ -6,3 +6,4 @@ pidtree_bcc.egg-info/*
 *.pyc
 **/__pycache__/*
 *.swp
+itest/itest_output_*
