@@ -1,5 +1,4 @@
 language: generic
+dist: xenial
 
-install: sudo apt-get -y install docker
-
-script: make itest
+script: sudo make itest
