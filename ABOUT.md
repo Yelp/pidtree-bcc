@@ -11,11 +11,11 @@ extended version of the in-kernel virtual machine that the BSDs use for
 filtering packets. As the name does not suggest, Linux uses it for in-kernel
 tracing.
 
-The eBPF virtual machine places certain restrictions on the type of program it
-can run - most notably that backward JMP instructions are not allowed,
-preventing loops and thus preventing kernel deadlocks. As such, external C
-functions from included libraries are not allowed, but header files can be
-included which is helpful for using defined data structures and macros.
+The eBPF virtual machine places certain restrictions on the type of
+program it can run - most notably that loops are not allowed, to prevent
+kernel deadlocks. As such, external C functions from included libraries
+are not allowed, but header files can be included which is helpful for
+using defined data structures and macros.
 
 ## What does pidtree-bcc use this for?
 `pidtree-bcc` templates out C programs that are compiled at runtime by LLVM into
