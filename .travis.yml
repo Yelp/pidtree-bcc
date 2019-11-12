@@ -1,4 +1,5 @@
 language: generic
 dist: xenial
 
+env: DEBUG=true
 script: sudo make itest
