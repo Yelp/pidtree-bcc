@@ -34,7 +34,11 @@ docker-interactive:
 	docker run $(DOCKER_ARGS) --rm -it --entrypoint /bin/bash pidtree-bcc
 
 itest:
-	./itest/$@.sh
+	./itest/itest.sh
 
 test:
 	tox
+
+test-all:
+	make test
+	make itest

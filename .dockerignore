@@ -1,2 +1,4 @@
 pidtree-bcc.fifo
-itest
+itest/*
+*.md
+LICENSE

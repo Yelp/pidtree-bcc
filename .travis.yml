@@ -3,4 +3,4 @@ dist: xenial
 
 install: sudo apt-get -y install netcat-traditional
 #env: DEBUG=true
-script: sudo make itest
+script: sudo make test-all
