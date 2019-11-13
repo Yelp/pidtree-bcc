@@ -7,9 +7,9 @@ export DEBUG=${DEBUG:-false}
 export CONTAINER_NAME=pidtree-itest_$$
 
 # The container takes a while to bootstrap so we have to wait before we emit the test event
-SPIN_UP_TIME=40
+SPIN_UP_TIME=10
 # We also need to timout the test if the test event *isn't* caught
-TIMEOUT=$(( SPIN_UP_TIME + 10 ))
+TIMEOUT=$(( SPIN_UP_TIME + 5 ))
 
 function is_port_used {
   USED_PORTS=$(ss -4lnt | awk 'FS="[[:space:]]+" { print $4 }' | cut -d: -f2 | sort)
@@ -22,7 +22,7 @@ function is_port_used {
 function create_event {
   echo "Creating test listener"
   mkfifo $TEST_SERVER_FIFO_NAME
-  cat $TEST_SERVER_FIFO_NAME | nc -l -p $TEST_PORT & 
+  cat $TEST_SERVER_FIFO_NAME | nc -l -p $TEST_PORT &
   echo "Sleeping $SPIN_UP_TIME for pidtree-bcc to start"
   sleep $SPIN_UP_TIME
   echo "Making test connection"
@@ -62,7 +62,10 @@ function main {
   is_port_used
   if [ "$DEBUG" = "true" ]; then set -x; fi
   echo "Building itest image"
-  docker build -t pidtree-itest .
+  # Build the base image
+  docker build -t pidtree-itest-base .
+  # Run the setup.sh install steps in the image so we don't hit timeouts
+  docker build -t pidtree-itest itest/
   mkfifo $FIFO_NAME
   echo "Launching itest-container $CONTAINER_NAME"
   docker run --name $CONTAINER_NAME -d\
