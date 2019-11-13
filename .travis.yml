@@ -1,6 +1,8 @@
 language: generic
 dist: xenial
 
-install: sudo apt-get -y install netcat-traditional
+install:
+  - sudo apt-get -y install netcat-traditional
+  - sudo pip install tox-travis
 #env: DEBUG=true
 script: sudo make test-all
