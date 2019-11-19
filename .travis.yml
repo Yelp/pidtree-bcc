@@ -3,6 +3,7 @@ dist: xenial
 
 install:
   - sudo apt-get -y install netcat-traditional
+  - sudo update-alternatives /bin/nc nc /bin/nc.traditional 99
   - sudo pip install tox-travis
 #env: DEBUG=true
 script: sudo make test-all
