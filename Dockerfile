@@ -3,8 +3,11 @@ RUN apt-get update && apt-get -y install python python-pip virtualenv make llvm 
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
 RUN echo "deb https://repo.iovisor.org/apt/$(lsb_release -cs) $(lsb_release -cs) main" > /etc/apt/sources.list.d/iovisor.list
 RUN apt-get update && apt-get -y install bcc-tools
-ADD . /work
+RUN mkdir /work
 WORKDIR /work
+ADD requirements.txt /work
+ADD Makefile /work
 RUN make docker-env
+ADD . /work
 ENTRYPOINT ["/work/run.sh"]
-CMD -c example_config 
+CMD -c example_config

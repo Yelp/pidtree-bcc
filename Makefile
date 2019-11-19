@@ -1,4 +1,4 @@
-.PHONY: dev-env
+.PHONY: dev-env itest test-all
 FIFO=$(CURDIR)/pidtree-bcc.fifo
 DOCKER_ARGS=-v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 
@@ -33,5 +33,12 @@ docker-interactive:
 	docker build -t pidtree-bcc .
 	docker run $(DOCKER_ARGS) --rm -it --entrypoint /bin/bash pidtree-bcc
 
+itest:
+	./itest/itest.sh
+
 test:
 	tox
+
+test-all:
+	make test
+	make itest
