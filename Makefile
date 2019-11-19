@@ -1,4 +1,4 @@
-.PHONY: dev-env itest
+.PHONY: dev-env itest test-all
 FIFO=$(CURDIR)/pidtree-bcc.fifo
 DOCKER_ARGS=-v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 
