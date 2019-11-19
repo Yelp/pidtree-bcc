@@ -1,6 +1,8 @@
 # pidtree-bcc
 > bcc script for tracing process tree ancestry for connect syscalls
 
+[![Build Status](https://travis-ci.org/Yelp/pidtree-bcc.svg?branch=master)](https://travis-ci.org/Yelp/pidtree-bcc)
+
 ## What
 `pidtree-bcc` utilizes the [bcc toolchain](https://github.com/iovisor/bcc) to
 create kprobes for (currently only) tcpv4 connect syscalls, and tracing the
