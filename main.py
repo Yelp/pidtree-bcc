@@ -153,7 +153,7 @@ def print_enriched_event(b, out, cpu, data, size):
     """
 
     event = b["events"].event(data)
-    print >> out, json.dumps(enrich_event(event))
+    print(json.dumps(enrich_event(event)), file=out)
     out.flush()
 
 def main(args):
