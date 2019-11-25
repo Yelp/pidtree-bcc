@@ -56,6 +56,7 @@ function wait_for_tame_output {
       echo "DEBUG: \$line is $line"
     fi
   done < "$FIFO_NAME"
+	return 1
 }
 
 function main {
