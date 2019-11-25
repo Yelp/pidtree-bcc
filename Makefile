@@ -13,7 +13,7 @@ dev-env: venv
 		pip install -rrequirements.txt"
 
 docker-env:
-	pip install -rrequirements.txt
+	pip3 install -rrequirements.txt
 
 docker-run:
 	docker build -t pidtree-bcc .
