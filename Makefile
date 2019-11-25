@@ -5,7 +5,7 @@ DOCKER_ARGS=-v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid
 default: dev-env
 
 venv:
-	virtualenv --system-site-packages -p python2 venv
+	virtualenv --system-site-packages -p python3 venv
 
 dev-env: venv
 	bash -c "\
