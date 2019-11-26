@@ -1,11 +1,5 @@
 # Roadmap
 This outlines some things that we're hoping to target in the near future
-## python3
-Currently pidtree-bcc uses python2.7 because these were the easiest
-system packages to get working, however we would like to aid the
-migration effort and start using newer features, so we will be investing
-in migrating toward python3. This will possibly require shipping with a
-prebuilt bcc-tools distribution.
 ## Plugin architecture
 The core functionality of pidtree-bcc will work on a majority of Linux
 systems, but we believe that the best signal-to-noise ratio and utility
