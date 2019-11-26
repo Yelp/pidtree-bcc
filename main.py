@@ -109,7 +109,7 @@ def parse_config(config_file):
     """ Parses yaml file at path `config_file` """
     if config_file is None:
         return {}
-    return yaml.load(open(config_file, 'r').read())
+    return yaml.safe_load(open(config_file, 'r').read())
 
 
 def ip_to_int(network):
