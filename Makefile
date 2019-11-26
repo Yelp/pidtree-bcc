@@ -5,7 +5,7 @@ DOCKER_ARGS=-v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid
 default: dev-env
 
 venv:
-	virtualenv --system-site-packages -p python2 venv
+	virtualenv --system-site-packages -p python3 venv
 
 dev-env: venv
 	bash -c "\
@@ -13,7 +13,7 @@ dev-env: venv
 		pip install -rrequirements.txt"
 
 docker-env:
-	pip install -rrequirements.txt
+	pip3 install -rrequirements.txt
 
 docker-run:
 	docker build -t pidtree-bcc .

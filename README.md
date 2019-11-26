@@ -39,8 +39,6 @@ username associated with the process.
   exit before the userland daemon tries to inspect it. Setting niceness
   values might help, but it is better to consider loopback addresses to
   be out-of-scope.
-* This is currently pinned to python2 because python3 did not work at
-  the time of the initial hackathon project. We'll get round to it :)
 
 ## Dependencies 
 See the installation instructions for [bcc](https://github.com/iovisor/bcc)
