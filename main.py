@@ -32,6 +32,7 @@ BPF_PERF_OUTPUT(events);
 struct connection_t {
     u32 pid;
     u32 daddr;
+    u32 saddr;
     u16 dport;
 };
 
@@ -85,6 +86,7 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
     connection.pid = pid;
     connection.dport = ntohs(dport);
     connection.daddr = daddr;
+    connection.saddr = saddr;
 
     events.perf_submit(ctx, &connection, sizeof(connection));
 
@@ -136,6 +138,7 @@ def enrich_event(event):
         # kernel to a python `int` and then turning that into a string
         # representation of an IP address:
         "daddr": socket.inet_ntoa(struct.pack('<L', event.daddr)),
+        "saddr": socket.inet_ntoa(struct.pack('<L', event.saddr)),
         "port": event.dport,
         "error": error
     }
