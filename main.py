@@ -13,6 +13,7 @@ from datetime import datetime
 from functools import partial
 from jinja2 import Template
 from pidtree_bcc import utils
+from pidtree_bcc import plugin
 
 bpf_text = """
 
@@ -143,7 +144,7 @@ def enrich_event(event):
         "error": error
     }
 
-def print_enriched_event(b, out, cpu, data, size):
+def print_enriched_event(b, out, plugins, cpu, data, size):
     """ A callback for printing enriched event metadata, should be
     passed as a partial to the callback registering function as
     `partial(print_enriched_event, b, out)` where `b` is the bpf
@@ -156,11 +157,15 @@ def print_enriched_event(b, out, cpu, data, size):
     """
 
     event = b["events"].event(data)
-    print(json.dumps(enrich_event(event)), file=out)
+    event = enrich_event(event)
+    for plugin in plugins:
+        event = plugin.process(event)
+    print(json.dumps(event), file=out)
     out.flush()
 
 def main(args):
     config = parse_config(args.config)
+    plugins = plugin.Plugins(config.get("plugins", {}))
     global bpf_text
     expanded_bpf_text = Template(bpf_text).render(
         ip_to_int=ip_to_int,
@@ -172,7 +177,7 @@ def main(args):
         sys.exit(0)
     out = utils.smart_open(args.output_file, mode='w')
     b = BPF(text=expanded_bpf_text)
-    b["events"].open_perf_buffer(partial(print_enriched_event, b, out))
+    b["events"].open_perf_buffer(partial(print_enriched_event, b, out, plugins.plugins()))
     while True:
         b.perf_buffer_poll()
     out.close()
