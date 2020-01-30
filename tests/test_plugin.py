@@ -8,7 +8,7 @@ def test_plugins_loads_no_plugins():
 
 def test_plugins_loads_identity_plugin():
     plugins = load_plugins({"identityplugin": {}})
-    assert isinstance(plugins[0], type(Identityplugin({})))
+    assert isinstance(plugins[0], Identityplugin)
 
 def test_plugins_doesnt_load_disabled_identity_plugin():
     plugins = load_plugins({"identityplugin": {"enabled": False}})
