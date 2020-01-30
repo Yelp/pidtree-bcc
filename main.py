@@ -165,7 +165,7 @@ def print_enriched_event(b, out, plugins, cpu, data, size):
 
 def main(args):
     config = parse_config(args.config)
-    plugins = plugin.Plugins(config.get("plugins", {}))
+    plugins = plugin.load_plugins(config.get("plugins", {}))
     global bpf_text
     expanded_bpf_text = Template(bpf_text).render(
         ip_to_int=ip_to_int,
@@ -177,7 +177,7 @@ def main(args):
         sys.exit(0)
     out = utils.smart_open(args.output_file, mode='w')
     b = BPF(text=expanded_bpf_text)
-    b["events"].open_perf_buffer(partial(print_enriched_event, b, out, plugins.plugins()))
+    b["events"].open_perf_buffer(partial(print_enriched_event, b, out, plugins))
     while True:
         b.perf_buffer_poll()
     out.close()

@@ -41,6 +41,7 @@ function cleanup {
   docker kill $CONTAINER_NAME
   echo "CLEANUP: Removing FIFO"
   rm -f $FIFO_NAME
+  rm -f $TEST_SERVER_FIFO_NAME
 }
 
 function wait_for_tame_output {
