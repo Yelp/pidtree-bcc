@@ -20,6 +20,6 @@ filters:
 plugins:
   sourceipmap:
     enabled: True
+    attribute_key: "source_container"
     hostfiles:
-      - '/etc/hosts'
-    attribute_key: "source_host"
+      - /maps/ipmapping.txt

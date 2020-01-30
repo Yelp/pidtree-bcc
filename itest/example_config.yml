@@ -36,4 +36,3 @@ filters:
     network: 127.0.0.0
     network_mask: 255.255.0.0
     description: "127.0/16 to get rid of the noise"
-

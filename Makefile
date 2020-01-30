@@ -1,6 +1,7 @@
 .PHONY: dev-env itest test-all
 FIFO=$(CURDIR)/pidtree-bcc.fifo
-DOCKER_ARGS=-v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
+EXTRA_DOCKER_ARGS?=
+DOCKER_ARGS=$(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 
 default: dev-env
 
@@ -33,8 +34,15 @@ docker-interactive:
 	docker build -t pidtree-bcc .
 	docker run $(DOCKER_ARGS) --rm -it --entrypoint /bin/bash pidtree-bcc
 
+testhosts:
+	docker ps -q | xargs -n 1 docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}} {{ .Name }}' | sed 's/ \// /' > $@
+
+docker-run-testhosts: testhosts
+	make EXTRA_DOCKER_ARGS="-v $(CURDIR)/testhosts:/etc/hosts:ro" docker-run
+
 itest:
 	./itest/itest.sh
+	./itest/itest_sourceipmap.sh
 
 test:
 	tox
