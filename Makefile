@@ -42,7 +42,7 @@ docker-run-testhosts: testhosts
 
 itest:
 	./itest/itest.sh
-	./itest/itest_sourcipmap.sh
+	./itest/itest_sourceipmap.sh
 
 test:
 	tox
