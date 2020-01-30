@@ -28,6 +28,7 @@ mkfifo $FIFONAME
 
 docker build -t pidtree-itest-base .
 docker build -t pidtree-itest itest
+docker pull ubuntu:latest
 echo "Creating background pidtree-bcc container to catch traffic"
 docker run --name $CONTAINER_NAME --rm -d\
     --rm --privileged --cap-add sys_admin --pid host \
