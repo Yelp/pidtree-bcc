@@ -28,7 +28,7 @@ def build_configuration(filename, namespace):
 class Sourceipmap(BasePlugin):
     """ Plugin for mapping source ip to a name """
     def __init__(self, args):
-        super
+        super(args)
         self.hosts_dict = {}
         self.config_watchers = []
         self.attribute_key = args.get("attribute_key", "source_host")
