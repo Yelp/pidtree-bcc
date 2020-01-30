@@ -15,7 +15,7 @@ function cleanup {
 }
 
 function test_output {
-		echo "Waiting for pidtree-bcc output corresponding to container $TAME_CONTAINER_NAME"
+    echo "Waiting for pidtree-bcc output corresponding to container $TAME_CONTAINER_NAME"
     while read line; do
         echo $line | grep $TAME_CONTAINER_NAME
         [ $? -eq 0 ] && return 0
