@@ -6,8 +6,8 @@ from pidtree_bcc.plugin import BasePlugin
 def hosts_loader(filename):
     return_dict = {}
     with open(filename, 'r') as mapfile:
-        hostlines = mapfile.readlines()
-    lines = [line.strip() for line in hostlines if not line.startswith('#') and line.strip() != '']
+        lines = [line.strip() for line in mapfile
+                 if not line.startswith('#') and line.strip() != '']
     for line in lines:
         splitline = line.split()
         return_dict[splitline[0]] = " ".join(splitline[1:])
