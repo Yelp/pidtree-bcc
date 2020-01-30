@@ -1,6 +1,6 @@
 .PHONY: dev-env itest test-all
 FIFO=$(CURDIR)/pidtree-bcc.fifo
-EXTRA_DOCKER_ARGS?=""
+EXTRA_DOCKER_ARGS?=
 DOCKER_ARGS=$(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 
 default: dev-env
