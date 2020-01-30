@@ -28,7 +28,7 @@ def build_configuration(filename, namespace):
 class Sourceipmap(BasePlugin):
     """ Plugin for mapping source ip to a name """
     def __init__(self, args):
-        super(args)
+        self.validate_args(args)
         self.hosts_dict = {}
         self.config_watchers = []
         self.attribute_key = args.get("attribute_key", "source_host")
@@ -54,7 +54,7 @@ class Sourceipmap(BasePlugin):
             raise RuntimeError("'hostfiles' option should be a list of fully qualified file paths")
 
         for hostfile in hostfiles:
-            if not os.isfile(hostfile):
+            if not os.path.isfile(hostfile):
                 raise RuntimeError("File `{hostfile}` passed as a 'hostfiles' entry to the sourceipmap plugin does not exist".format(
                     hostfile=hostfile,
                 ))
