@@ -32,7 +32,7 @@ username associated with the process.
   - PID `pid`
   - Command-line for process `cmdline`
   - Owner of process `username`
-	- Populated with UID when no `/etc/passwd` is mounted
+    - Populated with UID when no `/etc/passwd` is mounted
 - Connection metadata including
   - Source IP `saddr`
   - Destination IP `daddr`
@@ -139,11 +139,11 @@ Plugin configuration is populated using the `plugin` key at the top level of the
 plugins:
   somepluginname:
     enabled: <True/False> #True by default
-	arg_1: "blah"
-	arg_2:
-	  - some
-	  - values
-	arg...
+    arg_1: "blah"
+    arg_2:
+      - some
+      - values
+    arg...
 ```
 
 See below for a working example
