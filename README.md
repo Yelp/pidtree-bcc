@@ -26,6 +26,20 @@ which corresponds to domain names associated with the destination IP
 address) or another engineer as the originator of request via the
 username associated with the process.
 
+## Features
+- Full process tree attestation for outbound IPv4 TCP connections and
+  additional process metadata
+  - PID `pid`
+  - Command-line for process `cmdline`
+  - Owner of process `username`
+	- Populated with UID when no `/etc/passwd` is mounted
+- Connection metadata including
+  - Source IP `saddr`
+  - Destination IP `daddr`
+  - Destination port `port`
+- Optional plugin system for enriching events in userland
+  - Included `sourceipmap` plugin for mapping source addres
+
 ## Caveats
 * bcc compiles your eBPF "program" to bytecode at runtime using LLVM,
   and as such needs LLVM installed and the appropriate kernel headers.
@@ -51,8 +65,10 @@ best way to get a full view of the requisite state of the system for
 pidtree-bcc to work.
 
 ## Usage 
-> CAUTION! The Makefile calls 'docker run' with `--priveleged` so it is your
-> responsibility to ensure that it's not going to do anything untoward!
+> CAUTION! The Makefile calls 'docker run' with `--priveleged`,
+> `--cap-add=SYS_ADMIN` and `--pid host`` so it is your responsibility
+> to understand what this means and ensure that it's not going to do
+> anything untoward!
 
 With docker installed:
 ```
@@ -93,6 +109,7 @@ making TCP ipv4 `connect` syscalls like this one of me connecting to Freenode in
   "timestamp": "2019-11-12T14:24:57.532744Z",
   "pid": 1775,
   "daddr": "185.30.166.37",
+  "saddr": "X.X.X.X",
   "error": "",
   "port": 6697
 }
@@ -114,3 +131,59 @@ ports:
 ```
 
 To see *only* events for these ports.
+
+## Plugins
+Plugin configuration is populated using the `plugin` key at the top level of the configuration:
+
+```yaml
+plugins:
+  somepluginname:
+    enabled: <True/False> #True by default
+	arg_1: "blah"
+	arg_2:
+	  - some
+	  - values
+	arg...
+```
+
+See below for a working example
+
+Plugins with no `enabled` argument set will be *enabled by default*
+
+### Sourceipmap
+This plugin adds in a key-value pair to the connection metadata
+(top-level) with a configurable key and a value given by mapping the IP
+to a name given by a merged series of /etc/hosts format hostfiles. If
+there is no corresponding name an empty string is returned.
+
+Configuration is re-read in to memory a minimum of every 2 seconds, so
+connections *can* be misattributed.
+
+To enable the `sourceipmap` plugin, simply include a `plugins` stanza in the config like so:
+
+```yaml
+plugins:
+  sourceipmap:
+    enabled: True
+    hostfiles:
+      - '/etc/array`
+      - '/etc/of`
+      - '/etc/hostfiles`
+    attribute_key: "source_host"
+```
+
+If you're looking to map source container names, you might want to try
+running `itests/gen-ip-mapping.sh FILENAME INTERVAL` which will populate
+`FILENAME` with a map of ips to docker container names ever `INTERVAL`
+seconds.
+
+If you then volume mount the *directory* that this file is in (the contents of the file will not update if you bind mount it in directly) to a location like `/maps`, you can then use a configuration like:
+
+```yaml
+plugins:
+  sourceipmap:
+    enabled: True
+    hostfiles:
+      - '/maps/ipmapping.txt'
+    attribute_key: "source_container"
+```
