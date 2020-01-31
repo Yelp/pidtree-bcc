@@ -66,7 +66,7 @@ pidtree-bcc to work.
 
 ## Usage 
 > CAUTION! The Makefile calls 'docker run' with `--priveleged`,
-> `--cap-add=SYS_ADMIN` and `--pid host`` so it is your responsibility
+> `--cap-add=SYS_ADMIN` and `--pid host` so it is your responsibility
 > to understand what this means and ensure that it's not going to do
 > anything untoward!
 
@@ -133,7 +133,7 @@ ports:
 To see *only* events for these ports.
 
 ## Plugins
-Plugin configuration is populated using the `plugin` key at the top level of the configuration:
+Plugin configuration is populated using the `plugins` key at the top level of the configuration:
 
 ```yaml
 plugins:
@@ -166,9 +166,9 @@ plugins:
   sourceipmap:
     enabled: True
     hostfiles:
-      - '/etc/array`
-      - '/etc/of`
-      - '/etc/hostfiles`
+      - "/etc/array"
+      - "/etc/of"
+      - "/etc/hostfiles"
     attribute_key: "source_host"
 ```
 
@@ -184,6 +184,6 @@ plugins:
   sourceipmap:
     enabled: True
     hostfiles:
-      - '/maps/ipmapping.txt'
+      - "/maps/ipmapping.txt"
     attribute_key: "source_container"
 ```
