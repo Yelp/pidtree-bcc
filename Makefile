@@ -29,7 +29,7 @@ docker-interactive:
 	# If you want to run manually inside the container, first you need to:
 	# ./setup.sh
 	# then you can run:
-	# `python2 main.py -c example_config.yml`
+	# `python3 main.py -c example_config.yml`
 	# Additionally there's a `-p` flag for printing out the templated out eBPF C code so you can debug it
 	docker build -t pidtree-bcc .
 	docker run $(DOCKER_ARGS) --rm -it --entrypoint /bin/bash pidtree-bcc

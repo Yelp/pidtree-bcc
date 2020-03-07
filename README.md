@@ -124,7 +124,7 @@ configuration to write your own.
 Additionally, you can include config like:
 
 ```yaml
-ports:
+includeports:
   - 22
   - 443
   - 80
