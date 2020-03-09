@@ -130,7 +130,14 @@ includeports:
   - 80
 ```
 
-To see *only* events for these ports.
+To see *only* events for these ports. The results will still be filtered by the subnet filters. If you'd like
+the traffic from a specific port that bypasses the subnet filters, use:
+
+```yaml
+bypass_ports:
+ - 80
+ - 123
+ ```
 
 ## Plugins
 Plugin configuration is populated using the `plugins` key at the top level of the configuration:

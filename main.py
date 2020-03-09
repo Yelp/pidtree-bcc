@@ -66,6 +66,8 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
     if (0 // for easier templating 
     {% for filter in filters %}
          || (subnet_{{ filter["subnet_name"] }} & subnet_{{ filter["subnet_name"] }}_mask) == (daddr & subnet_{{ filter["subnet_name"] }}_mask)
+    {% endfor %}{% for port in bypass_ports %}
+         || ntohs({{ port }}) == dport
     {% endfor %}) {
         currsock.delete(&pid);
         return 0;
@@ -73,7 +75,7 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
     bpf_probe_read(&dport, sizeof(dport), &skp->__sk_common.skc_dport);
     {% if includeports != []: %}
     if ( 1 
-    {% for port in includeports %}
+    {% for port in includeports + bypass_ports %}
         && ntohs({{ port }}) != dport 
     {% endfor %}) {
         currsock.delete(&pid);
@@ -171,6 +173,7 @@ def main(args):
         ip_to_int=ip_to_int,
         filters=config.get("filters", []),
         includeports=config.get("includeports", []),
+        bypass_ports=config.get('bypass_ports', [])
     )
     if args.print_and_quit:
         print(expanded_bpf_text)
