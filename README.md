@@ -121,23 +121,23 @@ or 172.16/12 ranges because of the subnet filters I've included in the
 list of addresses you might want to filter, so you can use the example
 configuration to write your own.
 
-Additionally, you can include config like:
+Additionally, you can make the filters apply only to certain ports, using except_ports and include_ports.
+For example:
 
 ```yaml
-includeports:
-  - 22
-  - 443
-  - 80
+filters:
+  - subnet_name: 10
+    network: 10.0.0.0
+    network_mask : 255.0.0.0
+    description: "all RFC 1918 10/8"
+    except_ports: [80]
 ```
 
-To see *only* events for these ports. The results will still be filtered by the subnet filters. If you'd like
-the traffic from a specific port that bypasses the subnet filters, use:
+Would mean filter out all traffic from 10.0.0.0/8 except for that on port 80. If you changed except_ports
+to include_ports, then it would filter out only traffic to 10.0.0.0/8 on port 80.
 
-```yaml
-bypass_ports:
- - 80
- - 123
- ```
+In addition, you can add a global config for filtering out all traffic except those for specific ports,
+using the option `includeports`.
 
 ## Plugins
 Plugin configuration is populated using the `plugins` key at the top level of the configuration:
