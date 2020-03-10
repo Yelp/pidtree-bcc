@@ -4,12 +4,14 @@ filters:
     network: 10.0.0.0
     network_mask : 255.0.0.0
     description: "all RFC 1918 10/8"
-    except_ports: [80, 120]
   - subnet_name: 17216
     network: 172.16.0.0
     network_mask : 255.240.0.0
     description: "all RFC 1918 172.16/12"
-    include_ports: [123, 456]
+  - subnet_name: 169254
+    network: 169.254.0.0
+    network_mask : 255.255.0.0
+    description: "all 169.254/16 loopback"
   - subnet_name: 127
     network: 127.0.0.0
     network_mask : 255.0.0.0
