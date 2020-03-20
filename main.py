@@ -63,23 +63,45 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
     u32 saddr = 0, daddr = 0;
     u16 dport = 0;
     bpf_probe_read(&daddr, sizeof(daddr), &skp->__sk_common.skc_daddr);
+    //
+    // For each filter, drop the packet iff
+    // - a filter's subnet matches AND 
+    // - the port is not one of the filter's excepted ports AND
+    // - the port is one of the filter's included ports, if they exist
+    //
     if (0 // for easier templating 
-    {% for filter in filters %}
-         || (subnet_{{ filter["subnet_name"] }} & subnet_{{ filter["subnet_name"] }}_mask) == (daddr & subnet_{{ filter["subnet_name"] }}_mask)
-    {% endfor %}) {
+    {% for filter in filters -%}
+         || ( (subnet_{{ filter["subnet_name"] }} & subnet_{{ filter["subnet_name"] }}_mask) == (daddr & subnet_{{ filter["subnet_name"] }}_mask)
+              && ( 1 == 1  // For easier templating
+                {% for port in filter.get('except_ports', []) -%}
+                && ntohs({{ port }}) != dport
+                {% endfor -%}
+              )
+              && ( 
+                {% if filter.get('include_ports') -%}
+                    0
+                    {% for port in filter.get('include_ports', []) -%}
+                      || ntohs({{ port }}) == dport
+                    {% endfor -%} 
+                {% else -%}
+                1
+                {% endif -%}
+              )
+           )
+    {% endfor %} ) {
         currsock.delete(&pid);
         return 0;
     }
     bpf_probe_read(&dport, sizeof(dport), &skp->__sk_common.skc_dport);
-    {% if includeports != []: %}
+    {% if includeports != []: -%}
     if ( 1 
-    {% for port in includeports %}
+    {% for port in includeports -%}
         && ntohs({{ port }}) != dport 
     {% endfor %}) {
         currsock.delete(&pid);
         return 0;
     }
-    {% endif %}
+    {% endif -%}
 
     bpf_probe_read(&saddr, sizeof(saddr), &skp->__sk_common.skc_rcv_saddr);
 
