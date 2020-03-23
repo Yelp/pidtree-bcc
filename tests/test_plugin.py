@@ -1,10 +1,20 @@
 import pytest
 from pidtree_bcc.plugin import load_plugins
 from pidtree_bcc.plugins.identityplugin import Identityplugin
+from pidtree_bcc.plugins.sourceipmap import Sourceipmap
 
 def test_plugins_loads_no_plugins():
     plugins = load_plugins({})
     assert plugins == []
+
+def test_plugins_loads_multiple_plugins():
+    plugins = load_plugins({
+        "identityplugin": {},
+        "sourceipmap": {
+            "hostfiles": ["/etc/hosts"]
+        }
+    })
+    assert len(plugins) == 2
 
 def test_plugins_loads_identity_plugin():
     plugins = load_plugins({"identityplugin": {}})
