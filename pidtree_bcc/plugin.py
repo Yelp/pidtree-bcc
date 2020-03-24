@@ -1,4 +1,5 @@
 import importlib
+import sys
 
 class BasePlugin:
     def __init__(self, args):
@@ -22,6 +23,8 @@ def load_plugins(plugin_dict, plugin_dir="pidtree_bcc.plugins"):
     be validated on initialization of the plugin """
     plugins = []
     for plugin_name, plugin_args in plugin_dict.items():
+        error = None
+        unload_on_init_exception = plugin_args.get("unload_on_init_exception", False)
         if not plugin_args.get("enabled", True):
             continue
         plugin_classname = plugin_name.capitalize()
@@ -31,14 +34,22 @@ def load_plugins(plugin_dict, plugin_dir="pidtree_bcc.plugins"):
             plugin = getattr(module, plugin_classname)(plugin_args)
             plugins.append(plugin)
         except ImportError as e:
-            raise RuntimeError("Could not import {import_line}: {e}".format(
+            error = RuntimeError("Could not import {import_line}: {e}".format(
                 import_line=import_line,
                 e=e,
             ))
         except AttributeError as e:
-            raise RuntimeError("Could not find class {plugin_classname} in module {import_line}: {e}".format(
+            error = RuntimeError("Could not find class {plugin_classname} in module {import_line}: {e}".format(
                 plugin_classname=plugin_classname,
                 import_line=import_line,
                 e=e,
             ))
+        except Exception as e:
+            error = e
+        finally:
+            if error:
+                if unload_on_init_exception:
+                    sys.stderr.write(str(error) + "\n")
+                else:
+                    raise error
     return plugins
