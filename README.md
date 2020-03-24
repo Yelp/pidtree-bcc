@@ -146,7 +146,7 @@ Plugin configuration is populated using the `plugins` key at the top level of th
 plugins:
   somepluginname:
     enabled: <True/False> #True by default
-	unload_on_init_exception: <True/False> #False by default
+    unload_on_init_exception: <True/False> #False by default
     arg_1: "blah"
     arg_2:
       - some
