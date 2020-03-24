@@ -146,6 +146,7 @@ Plugin configuration is populated using the `plugins` key at the top level of th
 plugins:
   somepluginname:
     enabled: <True/False> #True by default
+	unload_on_init_exception: <True/False> #False by default
     arg_1: "blah"
     arg_2:
       - some
@@ -156,6 +157,11 @@ plugins:
 See below for a working example
 
 Plugins with no `enabled` argument set will be *enabled by default*
+
+The `unload_on_init_exception` boolean allows you to save pidtree-bcc
+from module misconfiguration for any given plugin configuration dict by
+simply setting it to `True`. Exceptions will be printed to stderr and
+the plugin will not be loaded.
 
 ### Sourceipmap
 This plugin adds in a key-value pair to the connection metadata
