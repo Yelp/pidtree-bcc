@@ -63,6 +63,7 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
     u32 saddr = 0, daddr = 0;
     u16 dport = 0;
     bpf_probe_read(&daddr, sizeof(daddr), &skp->__sk_common.skc_daddr);
+    bpf_probe_read(&dport, sizeof(dport), &skp->__sk_common.skc_dport);
     //
     // For each filter, drop the packet iff
     // - a filter's subnet matches AND 
@@ -92,7 +93,6 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
         currsock.delete(&pid);
         return 0;
     }
-    bpf_probe_read(&dport, sizeof(dport), &skp->__sk_common.skc_dport);
     {% if includeports != []: -%}
     if ( 1 
     {% for port in includeports -%}
