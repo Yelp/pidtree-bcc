@@ -1,11 +1,12 @@
 import setuptools
+from pidtree_bcc import __version__
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="pidtree-bcc",
-    version="0.5",
+    version=__version__,
     author="Matt Carroll",
     author_email="mattc@yelp.com",
     description="eBPF-based intrusion detection and audit logging",
