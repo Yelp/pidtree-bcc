@@ -53,3 +53,6 @@ test:
 test-all:
 	make test
 	make itest
+
+package_%:
+	make -C packaging package_$*

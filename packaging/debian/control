@@ -1,0 +1,10 @@
+Source: pidtree-bcc
+Section: base
+Priority: optional
+Maintainer: Matt Carroll <mattc@yelp.com>
+Build-Depends: dh-virtualenv
+
+Package: pidtree-bcc
+Architecture: amd64
+Depends: python3:any (>=3.5), llvm, lsb-release, bcc-tools, python3-bpfcc
+Description: eBPF based intrusion detection and audit logging

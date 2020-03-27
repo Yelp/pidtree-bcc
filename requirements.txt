@@ -2,3 +2,4 @@ Jinja2
 psutil
 pyyaml
 PyStaticConfiguration
+bcc
