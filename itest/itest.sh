@@ -81,7 +81,7 @@ function main {
     mkdir -p itest/dist
     rm -f itest/dist/*.deb
     cp $(ls -t packaging/dist/*.deb | head -n 1) itest/dist/  
-    docker build -t pidtree-itest-deb -f itest/Dockerfile.deb itest
+    docker build -t pidtree-itest-deb -f itest/Dockerfile.ubuntu_xenial itest
     docker run --name $CONTAINER_NAME -d\
         --rm --privileged --cap-add sys_admin --pid host \
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
