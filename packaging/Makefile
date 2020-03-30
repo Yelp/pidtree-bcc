@@ -11,9 +11,11 @@ VERSION_FILE = $(TOPLEVEL)/pidtree_bcc/__init__.py
 VERSION ?= $(shell cd $(TOPLEVEL) && python -c "from pidtree_bcc import __version__; print(__version__)")
 PREFIX ?= usr
 
+.PHONY: changelog
+
 default: dist/pidtree-bcc_$(VERSION).deb
 
-debian/changelog: $(VERSION_FILE)
+changelog: $(VERSION_FILE)
 	dch -v $(VERSION)
 
 package_ubuntu_xenial: dist/pidtree-bcc_$(VERSION).deb
