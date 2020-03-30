@@ -12,7 +12,7 @@ function setup {
 
 function run {
 		mount -t debugfs debugfs /sys/kernel/debug
-		/usr/share/python/pidtree-bcc/bin/python3 -m pidtree_bcc.main $@
+		pidtree-bcc $@
 }
 
 CMD=$1

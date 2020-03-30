@@ -56,6 +56,8 @@ test:
 test-all:
 	make test
 	make itest
+	make package_ubuntu_xenial
+	make itest_deb
 
 package_%:
 	make -C packaging package_$*

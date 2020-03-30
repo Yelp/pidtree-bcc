@@ -15,6 +15,7 @@ setuptools.setup(
     url="https://github.com/Yelp/pidtree-bcc",
     packages=setuptools.find_packages(),
     license='BSD 3-clause "New" or "Revised License"',
+    scripts=['bin/pidtree-bcc'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
