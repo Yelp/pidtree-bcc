@@ -5,6 +5,6 @@ INTERVAL=${2-2}
 
 mkdir -p $(dirname $MAPFILE)
 while true; do
-    docker ps -q | xargs -n 1 docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}} {{ .Name }}' | sed 's/ \// /' > $MAPFILE
-    sleep $INTERVAL
+  docker ps -q | xargs -n 1 docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}} {{ .Name }}' | sed 's/ \// /' > $MAPFILE
+  sleep $INTERVAL
 done

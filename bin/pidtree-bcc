@@ -2,12 +2,12 @@
 
 if [ "$INSTALL_HEADERS_AT_RUNTIME" = "true" ]; then
   if ! dpkg -l linux-headers-$(uname -r) >/dev/null 2>&1; then
-	  while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
-		  echo "Waiting for dpkg lock to free"
-			sleep 5
-		done
+  while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
+      echo "Waiting for dpkg lock to free"
+      sleep 5
+    done
     apt-get -y install linux-headers-$(uname -r)
-	fi
+  fi
 fi
 
 /usr/share/python/pidtree-bcc/bin/python3 -m pidtree_bcc.main $@

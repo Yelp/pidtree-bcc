@@ -78,17 +78,17 @@ function main {
         -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
         pidtree-itest -c /work/config.yml -f /work/outfile
   elif [[ "$@" = "--deb" ]]; then
-		mkdir -p itest/dist
-		rm -f itest/dist/*.deb
-		cp $(ls -t packaging/dist/*.deb | head -n 1) itest/dist/	
-		docker build -t pidtree-itest-deb -f itest/Dockerfile.deb itest
+    mkdir -p itest/dist
+    rm -f itest/dist/*.deb
+    cp $(ls -t packaging/dist/*.deb | head -n 1) itest/dist/  
+    docker build -t pidtree-itest-deb -f itest/Dockerfile.deb itest
     docker run --name $CONTAINER_NAME -d\
-					 --rm --privileged --cap-add sys_admin --pid host \
-					 -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
-					 -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
-					 -v $TOPLEVEL/packaging/dist:/work/dist \
-					 -v $TOPLEVEL/itest/deb_package_itest.sh:/work/deb_package_itest.sh \
-					 pidtree-itest-deb /work/deb_package_itest.sh run -c /work/config.yml -f /work/outfile
+        --rm --privileged --cap-add sys_admin --pid host \
+        -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
+        -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
+        -v $TOPLEVEL/packaging/dist:/work/dist \
+        -v $TOPLEVEL/itest/deb_package_itest.sh:/work/deb_package_itest.sh \
+        pidtree-itest-deb /work/deb_package_itest.sh run -c /work/config.yml -f /work/outfile
   fi
   export -f wait_for_tame_output
   export -f cleanup
