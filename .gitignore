@@ -12,3 +12,6 @@ itest/itest_server_*
 itest/tmp
 testhosts
 *.deb
+*.gz
+*.xz
+**/debian-binary

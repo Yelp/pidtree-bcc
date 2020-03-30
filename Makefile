@@ -47,6 +47,9 @@ itest:
 	./itest/itest.sh
 	./itest/itest_sourceipmap.sh
 
+itest_%:
+	./itest/itest.sh --$*
+
 test:
 	tox
 

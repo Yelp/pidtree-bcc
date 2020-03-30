@@ -5,6 +5,7 @@ export TEST_SERVER_FIFO_NAME=itest/itest_server_$$
 export TEST_PORT=${TEST_PORT:-31337}
 export DEBUG=${DEBUG:-false}
 export CONTAINER_NAME=pidtree-itest_$$
+export TOPLEVEL=$(git rev-parse --show-toplevel)
 
 # The container takes a while to bootstrap so we have to wait before we emit the test event
 SPIN_UP_TIME=10
@@ -63,18 +64,32 @@ function wait_for_tame_output {
 function main {
   is_port_used
   if [ "$DEBUG" = "true" ]; then set -x; fi
-  echo "Building itest image"
-  # Build the base image
-  docker build -t pidtree-itest-base .
-  # Run the setup.sh install steps in the image so we don't hit timeouts
-  docker build -t pidtree-itest itest/
   mkfifo $FIFO_NAME
-  echo "Launching itest-container $CONTAINER_NAME"
-  docker run --name $CONTAINER_NAME -d\
-      --rm --privileged --cap-add sys_admin --pid host \
-      -v $(git rev-parse --show-toplevel)/itest/example_config.yml:/work/config.yml \
-      -v $(git rev-parse --show-toplevel)/$FIFO_NAME:/work/outfile \
-      pidtree-itest -c /work/config.yml -f /work/outfile
+  if [[ "$@" = "" ]]; then
+    echo "Building itest image"
+    # Build the base image
+    docker build -t pidtree-itest-base .
+    # Run the setup.sh install steps in the image so we don't hit timeouts
+    docker build -t pidtree-itest itest/
+    echo "Launching itest-container $CONTAINER_NAME"
+    docker run --name $CONTAINER_NAME -d\
+        --rm --privileged --cap-add sys_admin --pid host \
+        -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
+        -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
+        pidtree-itest -c /work/config.yml -f /work/outfile
+  elif [[ "$@" = "--deb" ]]; then
+		mkdir -p itest/dist
+		rm -f itest/dist/*.deb
+		cp $(ls -t packaging/dist/*.deb | head -n 1) itest/dist/	
+		docker build -t pidtree-itest-deb -f itest/Dockerfile.deb itest
+    docker run --name $CONTAINER_NAME -d\
+					 --rm --privileged --cap-add sys_admin --pid host \
+					 -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
+					 -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
+					 -v $TOPLEVEL/packaging/dist:/work/dist \
+					 -v $TOPLEVEL/itest/deb_package_itest.sh:/work/deb_package_itest.sh \
+					 pidtree-itest-deb /work/deb_package_itest.sh run -c /work/config.yml -f /work/outfile
+  fi
   export -f wait_for_tame_output
   export -f cleanup
   timeout $TIMEOUT bash -c wait_for_tame_output &
