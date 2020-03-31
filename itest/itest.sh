@@ -62,10 +62,15 @@ function wait_for_tame_output {
 }
 
 function main {
+  if [[ "$@" != "--docker" && "$@" != "--deb" ]]; then
+    echo "ERROR: '$@' is not a supported argument (see 'itest/itest.sh' for options)" >&2
+    exit 1
+  fi
+  trap cleanup EXIT
   is_port_used
   if [ "$DEBUG" = "true" ]; then set -x; fi
   mkfifo $FIFO_NAME
-  if [[ "$@" = "" ]]; then
+  if [[ "$@" = "--docker" ]]; then
     echo "Building itest image"
     # Build the base image
     docker build -t pidtree-itest-base .
@@ -107,6 +112,5 @@ function main {
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  trap cleanup EXIT
   main "$@"
 fi

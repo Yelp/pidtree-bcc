@@ -44,7 +44,7 @@ docker-run-testhosts: testhosts
 	make EXTRA_DOCKER_ARGS="-v $(CURDIR)/testhosts:/etc/hosts:ro" docker-run
 
 itest:
-	./itest/itest.sh
+	./itest/itest.sh --docker
 	./itest/itest_sourceipmap.sh
 
 itest_%:
