@@ -7,6 +7,7 @@ import struct
 import sys
 import traceback
 import yaml
+import signal
 
 from bcc import BPF
 from datetime import datetime
@@ -135,6 +136,11 @@ def parse_config(config_file):
     if config_file is None:
         return {}
     return yaml.safe_load(open(config_file, 'r').read())
+    
+
+def sigint_handler(signum, frame):
+    sys.stderr.write("Caught SIGINT, exiting\n")
+    sys.exit(0)
 
 
 def ip_to_int(network):
@@ -186,6 +192,7 @@ def print_enriched_event(b, out, plugins, cpu, data, size):
     out.flush()
 
 def main(args):
+    signal.signal(signal.SIGINT, sigint_handler)
     config = parse_config(args.config)
     plugins = plugin.load_plugins(config.get("plugins", {}))
     global bpf_text
