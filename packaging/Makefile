@@ -25,4 +25,4 @@ dist/pidtree-bcc_$(VERSION).deb: debian/changelog
 	mkdir -p dist
 	cd $(TOPLEVEL)
 	docker build -f packaging/Dockerfile.ubuntu_xenial -t $(IMAGE_NAME) .
-	docker run --rm -it -v $(shell pwd)/dist:/work/dist $(IMAGE_NAME)
+	docker run --rm -v $(shell pwd)/dist:/work/dist $(IMAGE_NAME)
