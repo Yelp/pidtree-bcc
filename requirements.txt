@@ -1,5 +1,5 @@
 Jinja2
 psutil
-pytest
 pyyaml
 PyStaticConfiguration
+bcc

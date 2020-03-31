@@ -1,7 +1,11 @@
+.ONESHELL:
+SHELL := /bin/bash
+MAKEFLAGS += --warn-undefined-variables
+
 .PHONY: dev-env itest test-all
-FIFO=$(CURDIR)/pidtree-bcc.fifo
-EXTRA_DOCKER_ARGS?=
-DOCKER_ARGS=$(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
+FIFO = $(CURDIR)/pidtree-bcc.fifo
+EXTRA_DOCKER_ARGS? =
+DOCKER_ARGS = $(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 
 default: dev-env
 
@@ -9,9 +13,8 @@ venv:
 	virtualenv --system-site-packages -p python3 venv
 
 dev-env: venv
-	bash -c "\
-		source venv/bin/activate &&\
-		pip install -rrequirements.txt"
+	source venv/bin/activate
+	pip install -rrequirements.txt
 
 docker-env:
 	pip3 install -rrequirements.txt
@@ -41,8 +44,11 @@ docker-run-testhosts: testhosts
 	make EXTRA_DOCKER_ARGS="-v $(CURDIR)/testhosts:/etc/hosts:ro" docker-run
 
 itest:
-	./itest/itest.sh
+	./itest/itest.sh --docker
 	./itest/itest_sourceipmap.sh
+
+itest_%:
+	./itest/itest.sh --$*
 
 test:
 	tox
@@ -50,3 +56,8 @@ test:
 test-all:
 	make test
 	make itest
+	make package_ubuntu_xenial
+	make itest_deb
+
+package_%:
+	make -C packaging package_$*
