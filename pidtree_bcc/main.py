@@ -127,7 +127,7 @@ def parse_args():
     parser.add_argument("-c", "--config", type=str, help="yaml file containing subnet safelist information")
     parser.add_argument("-p", "--print-and-quit", action='store_true', default=False, help="don't run, just print the eBPF program to be compiled and quit")
     parser.add_argument("-f", "--output_file", type=str, default='-', help="File to output to (default is STDOUT, denoted by -)")
-    parser.add_argument("-v", "--version", action='store_true', default=False, help="Print the version of pidtree-bcc")
+    parser.add_argument("-v", "--version", action='version', version='pidtree-bcc %s' % __version__)
     args = parser.parse_args()
     if args.config is not None and not os.path.exists(args.config):
         os.stderr.write("--config file does not exist")
@@ -194,10 +194,6 @@ def print_enriched_event(b, out, plugins, cpu, data, size):
     out.flush()
 
 def main(args):
-    if args.version:
-        print(__version__)
-        sys.exit(0)
-
     signal.signal(signal.SIGINT, sigint_handler)
     config = parse_config(args.config)
     plugins = plugin.load_plugins(config.get("plugins", {}))
