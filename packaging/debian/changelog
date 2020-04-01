@@ -1,3 +1,9 @@
+pidtree-bcc (0.6.1) unstable; urgency=medium
+
+  * Minor version with nicer sigint handling and --verison support
+
+ -- Matthew Carroll <mattc@yelp.com>  Wed, 01 Apr 2020 03:20:43 -0700
+
 pidtree-bcc (0.6) unstable; urgency=medium
 
   * Actual working release with an entrypoint and everything
