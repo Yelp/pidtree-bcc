@@ -16,3 +16,4 @@ testhosts
 *.xz
 **/debian-binary
 packaging/dist
+itest/dist

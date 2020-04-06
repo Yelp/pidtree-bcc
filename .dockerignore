@@ -1,5 +1,6 @@
 pidtree-bcc.fifo
-itest/*
+itest
+packaging/dist
 LICENSE
 venv
 .tox

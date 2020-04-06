@@ -96,7 +96,7 @@ function main {
         --rm --privileged --cap-add sys_admin --pid host \
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
         -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
-        -v $TOPLEVEL/packaging/dist/$1/:/work/dist \
+        -v $TOPLEVEL/itest/dist/$1/:/work/dist \
         -v $TOPLEVEL/itest/deb_package_itest.sh:/work/deb_package_itest.sh \
         pidtree-itest-$1 /work/deb_package_itest.sh run -c /work/config.yml -f /work/outfile
   fi

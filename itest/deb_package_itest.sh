@@ -16,7 +16,9 @@ function setup {
   fi
   apt-get update
   apt-get -y install linux-headers-$(uname -r)
-  rm /etc/apt/sources.list.d/forwardports.list
+  if [ -f /etc/apt/sources.list.d/forwardports.list ]; then
+    /etc/apt/sources.list.d/forwardports.list
+  fi
   apt-get update
   apt-get -y install /work/dist/*.deb
 }

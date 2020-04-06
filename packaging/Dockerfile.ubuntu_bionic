@@ -19,7 +19,5 @@ RUN apt-get update && apt-get -y install python3-bcc
 RUN mkdir /work
 WORKDIR /work
 ADD . /work
-RUN make venv
-RUN make docker-env
 ADD packaging/debian /work/debian
 CMD /work/packaging/debian.sh
