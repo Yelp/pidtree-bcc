@@ -1,0 +1,5 @@
+FROM ubuntu:bionic
+ADD dist /work/dist
+ADD deb_package_itest.sh /work/deb_package_itest.sh
+ARG HOSTRELEASE
+RUN /work/deb_package_itest.sh setup ${HOSTRELEASE}

@@ -1,3 +1,6 @@
 pidtree-bcc.fifo
 itest/*
 LICENSE
+venv
+.tox
+.git

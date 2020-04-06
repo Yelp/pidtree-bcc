@@ -4,7 +4,7 @@ export FIFO_NAME=itest/itest_output_$$
 export TEST_SERVER_FIFO_NAME=itest/itest_server_$$
 export TEST_PORT=${TEST_PORT:-31337}
 export DEBUG=${DEBUG:-false}
-export CONTAINER_NAME=pidtree-itest_$$
+export CONTAINER_NAME=pidtree-itest_$1_$$
 export TOPLEVEL=$(git rev-parse --show-toplevel)
 
 # The container takes a while to bootstrap so we have to wait before we emit the test event
@@ -62,7 +62,7 @@ function wait_for_tame_output {
 }
 
 function main {
-  if [[ "$@" != "--docker" && "$@" != "--deb" ]]; then
+  if [[ $# -ne 1 && "$1" != "docker" && "$1" != "ubuntu_xenial" && "$1" != "ubuntu_bionic" ]]; then
     echo "ERROR: '$@' is not a supported argument (see 'itest/itest.sh' for options)" >&2
     exit 1
   fi
@@ -70,7 +70,7 @@ function main {
   is_port_used
   if [ "$DEBUG" = "true" ]; then set -x; fi
   mkfifo $FIFO_NAME
-  if [[ "$@" = "--docker" ]]; then
+  if [[ "$1" = "docker" ]]; then
     echo "Building itest image"
     # Build the base image
     docker build -t pidtree-itest-base .
@@ -82,18 +82,23 @@ function main {
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
         -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
         pidtree-itest -c /work/config.yml -f /work/outfile
-  elif [[ "$@" = "--deb" ]]; then
-    mkdir -p itest/dist
-    rm -f itest/dist/*.deb
-    cp $(ls -t packaging/dist/*.deb | head -n 1) itest/dist/  
-    docker build -t pidtree-itest-deb -f itest/Dockerfile.ubuntu_xenial itest
+  elif [[ "$1" = "ubuntu_xenial" || "ubuntu_bionic" ]]; then
+    if [ -f /etc/lsb-release ]; then
+      source /etc/lsb-release
+    else
+      echo "WARNING: Could not source /etc/lsb-release - I do not know what distro we are on, you could experience weird effects as this is not supported outside of Ubuntu" >&2
+    fi
+    mkdir -p itest/dist/$1/
+    rm -f itest/dist/$1/*.deb
+    cp $(ls -t packaging/dist/$1/*.deb | head -n 1) itest/dist/$1/
+    docker build -t pidtree-itest-$1 -f itest/Dockerfile.$1 --build-arg HOSTRELEASE=$DISTRIB_CODENAME itest/
     docker run --name $CONTAINER_NAME -d\
         --rm --privileged --cap-add sys_admin --pid host \
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
         -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
-        -v $TOPLEVEL/packaging/dist:/work/dist \
+        -v $TOPLEVEL/packaging/dist/$1/:/work/dist \
         -v $TOPLEVEL/itest/deb_package_itest.sh:/work/deb_package_itest.sh \
-        pidtree-itest-deb /work/deb_package_itest.sh run -c /work/config.yml -f /work/outfile
+        pidtree-itest-$1 /work/deb_package_itest.sh run -c /work/config.yml -f /work/outfile
   fi
   export -f wait_for_tame_output
   export -f cleanup
