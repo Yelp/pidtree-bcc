@@ -10,4 +10,4 @@ if [ "$INSTALL_HEADERS_AT_RUNTIME" = "true" ]; then
   fi
 fi
 
-/usr/share/python/pidtree-bcc/bin/python3 -m pidtree_bcc.main $@
+/opt/venvs/pidtree-bcc/bin/python3 -m pidtree_bcc.main $@

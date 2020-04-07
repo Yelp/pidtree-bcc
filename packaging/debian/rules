@@ -1,7 +1,10 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
+
+export DH_VIRTUALENV_INSTALL_ROOT = /opt/venvs
+
 %:
 	dh $@ --with python-virtualenv
 
 override_dh_virtualenv:
-	dh_virtualenv --python python3.5 --use-system-packages
+	dh_virtualenv --python python3 --use-system-packages

@@ -48,7 +48,7 @@ itest:
 	./itest/itest_sourceipmap.sh
 
 itest_%:
-	./itest/itest.sh --$*
+	./itest/itest.sh $*
 
 test:
 	tox
@@ -57,7 +57,9 @@ test-all:
 	make test
 	make itest
 	make package_ubuntu_xenial
-	make itest_deb
+	make package_ubuntu_bionic
+	make itest_ubuntu_xenial
+	make itest_ubuntu_bionic
 
 package_%:
 	make -C packaging package_$*
