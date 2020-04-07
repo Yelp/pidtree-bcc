@@ -82,7 +82,7 @@ function main {
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
         -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
         pidtree-itest -c /work/config.yml -f /work/outfile
-  elif [[ "$1" = "ubuntu_xenial" || "ubuntu_bionic" ]]; then
+  elif [[ "$1" = "ubuntu_xenial" || "$1" = "ubuntu_bionic" ]]; then
     if [ -f /etc/lsb-release ]; then
       source /etc/lsb-release
     else

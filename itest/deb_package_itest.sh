@@ -28,7 +28,6 @@ function run {
   pidtree-bcc $@
 }
 
-echo $@
 CMD=$1
 shift
 if [[ "$CMD" = "setup" ]]; then
