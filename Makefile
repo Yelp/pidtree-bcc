@@ -2,10 +2,11 @@
 SHELL := /bin/bash
 MAKEFLAGS += --warn-undefined-variables
 
-.PHONY: dev-env itest test-all
+.PHONY: dev-env itest test test-all cook-image docker-run docker-run-with-fifo docker-interactive testhosts docker-run-testhosts clean clean-cache
 FIFO = $(CURDIR)/pidtree-bcc.fifo
 EXTRA_DOCKER_ARGS? =
 DOCKER_ARGS = $(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
+HOST_OS_RELEASE = $(or $(shell cat /etc/lsb-release 2>/dev/null | grep -Po '(?<=CODENAME=)(.+)'), bionic)
 
 default: dev-env
 
@@ -16,25 +17,22 @@ dev-env: venv
 	source venv/bin/activate
 	pip install -rrequirements.txt
 
-docker-env:
-	pip3 install -rrequirements.txt
+cook-image: clean-cache
+	docker build -t pidtree-bcc --build-arg OS_RELEASE=$(HOST_OS_RELEASE) .
 
-docker-run:
-	docker build -t pidtree-bcc .
+docker-run: cook-image
 	docker run $(DOCKER_ARGS) --rm -it pidtree-bcc -c example_config.yml
 
-docker-run-with-fifo:
+docker-run-with-fifo: cook-image
 	mkfifo pidtree-bcc.fifo || true
-	docker build -t pidtree-bcc .
 	docker run -v $(FIFO):/work/pidtree-bcc.fifo $(DOCKER_ARGS) --rm -it pidtree-bcc -c example_config.yml -f pidtree-bcc.fifo
 
-docker-interactive:
+docker-interactive: cook-image
 	# If you want to run manually inside the container, first you need to:
 	# ./setup.sh
 	# then you can run:
 	# `python3 main.py -c example_config.yml`
 	# Additionally there's a `-p` flag for printing out the templated out eBPF C code so you can debug it
-	docker build -t pidtree-bcc .
 	docker run $(DOCKER_ARGS) --rm -it --entrypoint /bin/bash pidtree-bcc
 
 testhosts:
@@ -43,17 +41,17 @@ testhosts:
 docker-run-testhosts: testhosts
 	make EXTRA_DOCKER_ARGS="-v $(CURDIR)/testhosts:/etc/hosts:ro" docker-run
 
-itest:
-	./itest/itest.sh --docker
+itest: clean-cache
+	./itest/itest.sh docker
 	./itest/itest_sourceipmap.sh
 
-itest_%:
+itest_%: clean-cache
 	./itest/itest.sh $*
 
-test:
+test: clean-cache
 	tox
 
-test-all:
+test-all: clean-cache
 	make test
 	make itest
 	make package_ubuntu_xenial
@@ -63,3 +61,13 @@ test-all:
 
 package_%:
 	make -C packaging package_$*
+
+clean-cache:
+	find -name '*.pyc' -delete
+	find -name '__pycache__' -delete
+
+clean: clean-cache
+	rm -Rf packaging/dist itest/dist
+	rm -f itest/itest_output_* itest/itest_server_*
+	rm -Rf itest/itest-sourceip-* itest/tmp
+	rm -Rf .tox

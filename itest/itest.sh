@@ -29,10 +29,12 @@ function create_event {
   echo "Making test connection"
   nc 127.1.33.7 $TEST_PORT & > /dev/null
   CLIENT_PID=$!
-  sleep 3s
   echo "lolz" > $TEST_SERVER_FIFO_NAME
+  sleep 3
   echo "Killing test connection"
   kill $CLIENT_PID
+  pkill cat
+  rm -f $TEST_SERVER_FIFO_NAME
 }
 
 function cleanup {
@@ -42,7 +44,6 @@ function cleanup {
   docker kill $CONTAINER_NAME
   echo "CLEANUP: Removing FIFO"
   rm -f $FIFO_NAME
-  rm -f $TEST_SERVER_FIFO_NAME
 }
 
 function wait_for_tame_output {
@@ -73,7 +74,13 @@ function main {
   if [[ "$1" = "docker" ]]; then
     echo "Building itest image"
     # Build the base image
-    docker build -t pidtree-itest-base .
+    if [ -f /etc/lsb-release ]; then
+      source /etc/lsb-release
+    else
+      echo "WARNING: Could not source /etc/lsb-release, tentatively creating bionic docker image"
+      DISTRIB_CODENAME=bionic
+    fi
+    docker build -t pidtree-itest-base --build-arg OS_RELEASE=$DISTRIB_CODENAME .
     # Run the setup.sh install steps in the image so we don't hit timeouts
     docker build -t pidtree-itest itest/
     echo "Launching itest-container $CONTAINER_NAME"
@@ -91,7 +98,8 @@ function main {
     mkdir -p itest/dist/$1/
     rm -f itest/dist/$1/*.deb
     cp $(ls -t packaging/dist/$1/*.deb | head -n 1) itest/dist/$1/
-    docker build -t pidtree-itest-$1 -f itest/Dockerfile.$1 --build-arg HOSTRELEASE=$DISTRIB_CODENAME itest/
+    docker build -t pidtree-itest-$1 -f itest/Dockerfile.ubuntu \
+        --build-arg OS_RELEASE=${1/ubuntu_/} --build-arg HOSTRELEASE=$DISTRIB_CODENAME itest/
     docker run --name $CONTAINER_NAME -d\
         --rm --privileged --cap-add sys_admin --pid host \
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
