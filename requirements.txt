@@ -3,4 +3,3 @@ psutil
 pyyaml
 PyStaticConfiguration
 zipp<3.0.0; python_version<'3.6'
-bcc

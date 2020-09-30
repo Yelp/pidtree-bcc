@@ -55,7 +55,8 @@ username associated with the process.
   be out-of-scope.
 
 ## Dependencies 
-See the installation instructions for [bcc](https://github.com/iovisor/bcc)
+See the installation instructions for [bcc](https://github.com/iovisor/bcc).
+It is required for the `python3-bcc` package and its depedencies to be installed.
 
 Most notably, you need a kernel with eBPF enabled (4.4 onward) and the
 Linux headers for your running kernel version installed. For a
