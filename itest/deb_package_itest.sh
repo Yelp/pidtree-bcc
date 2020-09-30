@@ -5,10 +5,8 @@ function setup {
   # machine we need to forward port the kernel headers
   host_release=$1
   apt-get update
-  apt-get -y install lsb-release apt-transport-https ca-certificates gnupg
+  apt-get -y install lsb-release
   source /etc/lsb-release
-  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
-  echo "deb https://repo.iovisor.org/apt/$(lsb_release -cs) $(lsb_release -cs) main" > /etc/apt/sources.list.d/iovisor.list
   if [[ "$host_release" != "$DISTRIB_CODENAME" && "$host_release" != "" ]]; then
     echo "deb http://archive.ubuntu.com/ubuntu/ ${host_release} main" >> /etc/apt/sources.list.d/forwardports.list
     echo "deb http://archive.ubuntu.com/ubuntu/ ${host_release}-updates main" >> /etc/apt/sources.list.d/forwardports.list
@@ -25,6 +23,7 @@ function setup {
 
 function run {
   mount -t debugfs debugfs /sys/kernel/debug
+  pidtree-bcc --help
   pidtree-bcc $@
 }
 

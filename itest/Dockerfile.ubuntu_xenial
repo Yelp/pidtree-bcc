@@ -1,4 +1,0 @@
-FROM ubuntu:xenial
-ADD dist/ubuntu_xenial/ /work/dist/
-ADD deb_package_itest.sh /work/deb_package_itest.sh
-RUN /work/deb_package_itest.sh setup
