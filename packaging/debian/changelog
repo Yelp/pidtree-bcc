@@ -1,3 +1,9 @@
+pidtree-bcc (0.6.3) unstable; urgency=medium
+
+  * Explicitly testing support for BCC 0.12.0
+
+ -- Matteo Piano <mpiano@yelp.com>  Wed, 30 Sep 2020 10:00:15 -0700
+
 pidtree-bcc (0.6.2) unstable; urgency=medium
 
   * Moved installation dir to /opt/venv/pidtree-bcc
