@@ -20,10 +20,10 @@ package_%:
 	make dist/$*/pidtree-bcc_$(VERSION).deb
 
 dist/%/pidtree-bcc_$(VERSION).deb: IMAGE_NAME=$(notdir $(basename $@))_build_$*
-dist/%/pidtree-bcc_$(VERSION).deb: debian/changelog Dockerfile.%
+dist/%/pidtree-bcc_$(VERSION).deb: debian/changelog Dockerfile.ubuntu
 	mkdir -p dist/$*
 	cd $(TOPLEVEL)
-	docker build -f packaging/Dockerfile.$* -t $(IMAGE_NAME) .
+	docker build -f packaging/Dockerfile.ubuntu --build-arg OS_RELEASE=$(subst ubuntu_,,$*) -t $(IMAGE_NAME) .
 	# even though we `cd`d above, `shell pwd` will still produce the full
 	# path of the *packaging* directory
 	docker run --rm -v $(shell pwd)/dist/$*:/work/dist $(IMAGE_NAME)

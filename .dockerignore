@@ -1,7 +1,7 @@
 pidtree-bcc.fifo
+pidtree_bcc.egg-info
 itest
 packaging/dist
-LICENSE
 venv
 .tox
 .git
