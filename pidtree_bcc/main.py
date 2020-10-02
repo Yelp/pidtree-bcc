@@ -147,7 +147,7 @@ def parse_args():
     )
     args = parser.parse_args()
     if args.config is not None and not os.path.exists(args.config):
-        os.stderr.write('--config file does not exist')
+        sys.stderr.write('--config file does not exist\n')
     return(args)
 
 
