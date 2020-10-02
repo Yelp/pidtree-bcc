@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 MAKEFLAGS += --warn-undefined-variables
 
-.PHONY: dev-env itest test test-all cook-image docker-run docker-run-with-fifo docker-interactive testhosts docker-run-testhosts clean clean-cache
+.PHONY: dev-env itest test test-all cook-image docker-run docker-run-with-fifo docker-interactive testhosts docker-run-testhosts clean clean-cache install-hooks
 FIFO = $(CURDIR)/pidtree-bcc.fifo
 EXTRA_DOCKER_ARGS? =
 DOCKER_ARGS = $(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
@@ -12,6 +12,9 @@ default: venv
 
 venv: requirements.txt requirements-dev.txt
 	tox -e venv
+
+install-hooks: venv
+	venv/bin/pre-commit install -f --install-hooks
 
 cook-image: clean-cache
 	docker build -t pidtree-bcc --build-arg OS_RELEASE=$(HOST_OS_RELEASE) .
