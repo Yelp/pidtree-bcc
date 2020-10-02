@@ -8,7 +8,7 @@ TOPLEVEL = $(shell git rev-parse --show-toplevel)
 VERSION_FILE = $(TOPLEVEL)/pidtree_bcc/__init__.py
 
 # Variables
-VERSION = $(shell grep __version__ $(VERSION_FILE) | grep -Po '(?<=")([^"]+)')
+VERSION = $(shell grep __version__ $(VERSION_FILE) | grep -Po "(?<=')([^']+)")
 PREFIX ?= usr
 
 .PHONY: changelog package_%
