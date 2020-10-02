@@ -130,7 +130,7 @@ def parse_args():
     parser.add_argument("-v", "--version", action='version', version='pidtree-bcc %s' % __version__)
     args = parser.parse_args()
     if args.config is not None and not os.path.exists(args.config):
-        os.stderr.write("--config file does not exist")
+        sys.stderr.write("--config file does not exist\n")
     return(args)
 
 def parse_config(config_file):
