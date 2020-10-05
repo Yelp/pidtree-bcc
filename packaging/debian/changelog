@@ -1,3 +1,10 @@
+pidtree-bcc (0.7.0) unstable; urgency=medium
+
+  * Removed llvm and lsb-release from dependencies
+  * Fix os.stderr to sys.stderr
+
+ -- Matteo Piano <mpiano@yelp.com>  Mon, 05 Oct 2020 05:08:00 -0700
+
 pidtree-bcc (0.6.3) unstable; urgency=medium
 
   * Explicitly testing support for BCC 0.12.0
