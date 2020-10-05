@@ -11,7 +11,7 @@ ancestry of the process that made the syscall.
 It also aims to have a tunable set of in-kernel filtering features in order to
 prevent excessive logging for things like loopback and RFC1918 `connect`s
 
-## Why 
+## Why
 Security monitoring purposes. ML based products like Amazon's GuardDuty will
 tell you when hosts in your infrastructure have made "anomolous" outbound
 requests, but often these are as-intended but not known about by the team
@@ -54,7 +54,7 @@ username associated with the process.
   values might help, but it is better to consider loopback addresses to
   be out-of-scope.
 
-## Dependencies 
+## Dependencies
 See the installation instructions for [bcc](https://github.com/iovisor/bcc).
 It is required for the `python3-bcc` package and its depedencies to be installed.
 
@@ -65,7 +65,7 @@ docker-run`) to launch pidtree-bcc. Following the thread here is the
 best way to get a full view of the requisite state of the system for
 pidtree-bcc to work.
 
-## Usage 
+## Usage
 > CAUTION! The Makefile calls 'docker run' with `--priveleged`,
 > `--cap-add=SYS_ADMIN` and `--pid host` so it is your responsibility
 > to understand what this means and ensure that it's not going to do

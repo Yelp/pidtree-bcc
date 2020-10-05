@@ -2,20 +2,19 @@
 SHELL := /bin/bash
 MAKEFLAGS += --warn-undefined-variables
 
-.PHONY: dev-env itest test test-all cook-image docker-run docker-run-with-fifo docker-interactive testhosts docker-run-testhosts clean clean-cache
+.PHONY: dev-env itest test test-all cook-image docker-run docker-run-with-fifo docker-interactive testhosts docker-run-testhosts clean clean-cache install-hooks
 FIFO = $(CURDIR)/pidtree-bcc.fifo
 EXTRA_DOCKER_ARGS? =
 DOCKER_ARGS = $(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 HOST_OS_RELEASE = $(or $(shell cat /etc/lsb-release 2>/dev/null | grep -Po '(?<=CODENAME=)(.+)'), bionic)
 
-default: dev-env
+default: venv
 
-venv:
-	virtualenv --system-site-packages -p python3 venv
+venv: requirements.txt requirements-dev.txt
+	tox -e venv
 
-dev-env: venv
-	source venv/bin/activate
-	pip install -rrequirements.txt
+install-hooks: venv
+	venv/bin/pre-commit install -f --install-hooks
 
 cook-image: clean-cache
 	docker build -t pidtree-bcc --build-arg OS_RELEASE=$(HOST_OS_RELEASE) .
@@ -70,4 +69,4 @@ clean: clean-cache
 	rm -Rf packaging/dist itest/dist
 	rm -f itest/itest_output_* itest/itest_server_*
 	rm -Rf itest/itest-sourceip-* itest/tmp
-	rm -Rf .tox
+	rm -Rf .tox venv

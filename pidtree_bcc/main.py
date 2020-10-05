@@ -1,21 +1,22 @@
 import argparse
 import json
 import os
-import psutil
+import signal
 import socket
 import struct
 import sys
 import traceback
-import yaml
-import signal
-
-from bcc import BPF
 from datetime import datetime
 from functools import partial
+
+import psutil
+import yaml
+from bcc import BPF
 from jinja2 import Template
-from pidtree_bcc import utils
-from pidtree_bcc import plugin
+
 from pidtree_bcc import __version__
+from pidtree_bcc import plugin
+from pidtree_bcc import utils
 
 bpf_text = """
 
@@ -74,7 +75,10 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
     //
     if (0 // for easier templating
     {% for filter in filters -%}
-         || ( (subnet_{{ filter["subnet_name"] }} & subnet_{{ filter["subnet_name"] }}_mask) == (daddr & subnet_{{ filter["subnet_name"] }}_mask)
+         || ( (
+                subnet_{{ filter["subnet_name"] }}
+                & subnet_{{ filter["subnet_name"] }}_mask
+              ) == (daddr & subnet_{{ filter["subnet_name"] }}_mask)
               && ( 1 == 1  // For easier templating
                 {% for port in filter.get('except_ports', []) -%}
                 && ntohs({{ port }}) != dport
@@ -121,27 +125,42 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
 }
 """
 
+
 def parse_args():
     """ Parses args """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", type=str, help="yaml file containing subnet safelist information")
-    parser.add_argument("-p", "--print-and-quit", action='store_true', default=False, help="don't run, just print the eBPF program to be compiled and quit")
-    parser.add_argument("-f", "--output_file", type=str, default='-', help="File to output to (default is STDOUT, denoted by -)")
-    parser.add_argument("-v", "--version", action='version', version='pidtree-bcc %s' % __version__)
+    parser.add_argument(
+        '-c', '--config', type=str,
+        help='yaml file containing subnet safelist information',
+    )
+    parser.add_argument(
+        '-p', '--print-and-quit', action='store_true', default=False,
+        help="don't run, just print the eBPF program to be compiled and quit",
+    )
+    parser.add_argument(
+        '-f', '--output_file', type=str, default='-',
+        help='File to output to (default is STDOUT, denoted by -)',
+    )
+    parser.add_argument(
+        '-v', '--version', action='version',
+        version='pidtree-bcc %s' % __version__,
+    )
     args = parser.parse_args()
     if args.config is not None and not os.path.exists(args.config):
-        os.stderr.write("--config file does not exist")
+        sys.stderr.write('--config file does not exist\n')
     return(args)
+
 
 def parse_config(config_file):
     """ Parses yaml file at path `config_file` """
     if config_file is None:
         return {}
-    return yaml.safe_load(open(config_file, 'r').read())
-    
+    with open(config_file) as f:
+        return yaml.safe_load(f)
+
 
 def sigint_handler(signum, frame):
-    sys.stderr.write("Caught SIGINT, exiting\n")
+    sys.stderr.write('Caught SIGINT, exiting\n')
     sys.exit(0)
 
 
@@ -153,26 +172,33 @@ def ip_to_int(network):
 def enrich_event(event):
     """ Takes the raw event data and enriches by adding process tree metadata """
     proctree_enriched = []
-    error = ""
+    error = ''
     try:
         proc = psutil.Process(event.pid)
         proctree = utils.crawl_process_tree(proc)
-        proctree_enriched = list({"pid": p.pid, "cmdline": " ".join(p.cmdline()), "username":  p.username()} for p in proctree)
-    except Exception as e:
-        error=traceback.format_exc()
+        proctree_enriched = list(
+            {
+                'pid': p.pid, 'cmdline': ' '.join(
+                    p.cmdline(),
+                ), 'username':  p.username(),
+            } for p in proctree
+        )
+    except Exception:
+        error = traceback.format_exc()
     return {
-        "timestamp": datetime.utcnow().isoformat() + 'Z',
-        "pid": event.pid,
-        "proctree": proctree_enriched,
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'pid': event.pid,
+        'proctree': proctree_enriched,
         # We're turning a little-endian insigned long ('<L')
         # representation of the destination address sent from the
         # kernel to a python `int` and then turning that into a string
         # representation of an IP address:
-        "daddr": socket.inet_ntoa(struct.pack('<L', event.daddr)),
-        "saddr": socket.inet_ntoa(struct.pack('<L', event.saddr)),
-        "port": event.dport,
-        "error": error
+        'daddr': socket.inet_ntoa(struct.pack('<L', event.daddr)),
+        'saddr': socket.inet_ntoa(struct.pack('<L', event.saddr)),
+        'port': event.dport,
+        'error': error,
     }
+
 
 def print_enriched_event(b, out, plugins, cpu, data, size):
     """ A callback for printing enriched event metadata, should be
@@ -186,33 +212,37 @@ def print_enriched_event(b, out, plugins, cpu, data, size):
     event out.
     """
 
-    event = b["events"].event(data)
+    event = b['events'].event(data)
     event = enrich_event(event)
-    for plugin in plugins:
-        event = plugin.process(event)
+    for event_plugin in plugins:
+        event = event_plugin.process(event)
     print(json.dumps(event), file=out)
     out.flush()
+
 
 def main(args):
     signal.signal(signal.SIGINT, sigint_handler)
     config = parse_config(args.config)
-    plugins = plugin.load_plugins(config.get("plugins", {}))
+    plugins = plugin.load_plugins(config.get('plugins', {}))
     global bpf_text
     expanded_bpf_text = Template(bpf_text).render(
         ip_to_int=ip_to_int,
-        filters=config.get("filters", []),
-        includeports=config.get("includeports", []),
+        filters=config.get('filters', []),
+        includeports=config.get('includeports', []),
     )
     if args.print_and_quit:
         print(expanded_bpf_text)
         sys.exit(0)
     out = utils.smart_open(args.output_file, mode='w')
     b = BPF(text=expanded_bpf_text)
-    b["events"].open_perf_buffer(partial(print_enriched_event, b, out, plugins))
+    b['events'].open_perf_buffer(
+        partial(print_enriched_event, b, out, plugins),
+    )
     while True:
         b.perf_buffer_poll()
     out.close()
     sys.exit(0)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main(parse_args())

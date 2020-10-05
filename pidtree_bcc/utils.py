@@ -1,5 +1,7 @@
-import psutil
 import sys
+
+import psutil
+
 
 def crawl_process_tree(proc):
     """ Takes a process and returns all process ancestry until the ppid is 0 """
@@ -10,6 +12,7 @@ def crawl_process_tree(proc):
             break
         procs.append(psutil.Process(ppid))
     return procs
+
 
 def smart_open(filename=None, mode='r'):
     """ File OR stdout open """
