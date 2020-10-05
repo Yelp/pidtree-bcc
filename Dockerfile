@@ -22,8 +22,6 @@ FROM    ubuntu:${OS_RELEASE}
 
 RUN     apt-get update \
         && apt-get -y install \
-            llvm \
-            lsb-release \
             python3 \
             python3-pip \
         && apt-get clean
