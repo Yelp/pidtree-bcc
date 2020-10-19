@@ -8,6 +8,9 @@ import sys
 import traceback
 from datetime import datetime
 from functools import partial
+from typing import Any
+from typing import List
+from typing import TextIO
 
 import psutil
 import yaml
@@ -17,6 +20,7 @@ from jinja2 import Template
 from pidtree_bcc import __version__
 from pidtree_bcc import plugin
 from pidtree_bcc import utils
+
 
 bpf_text = """
 
@@ -126,8 +130,8 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
 """
 
 
-def parse_args():
-    """ Parses args """
+def parse_args() -> argparse.Namespace:
+    """ Parses command line arguments """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-c', '--config', type=str,
@@ -148,29 +152,42 @@ def parse_args():
     args = parser.parse_args()
     if args.config is not None and not os.path.exists(args.config):
         sys.stderr.write('--config file does not exist\n')
-    return(args)
+    return args
 
 
-def parse_config(config_file):
-    """ Parses yaml file at path `config_file` """
+def parse_config(config_file: str) -> dict:
+    """ Parses yaml config file
+
+    :param str config_file: config file path
+    :return: configuration dictionary
+    """
     if config_file is None:
         return {}
     with open(config_file) as f:
         return yaml.safe_load(f)
 
 
-def sigint_handler(signum, frame):
+def sigint_handler(signum: int, frame: Any):
+    """ Generic SIGINT handler """
     sys.stderr.write('Caught SIGINT, exiting\n')
     sys.exit(0)
 
 
-def ip_to_int(network):
-    """ Takes an IP and returns the unsigned integer encoding of the address """
+def ip_to_int(network: str) -> int:
+    """ Takes an IP and returns the unsigned integer encoding of the address
+
+    :param str network: ip address
+    :return: unsigned integer encoding
+    """
     return struct.unpack('=L', socket.inet_aton(network))[0]
 
 
-def enrich_event(event):
-    """ Takes the raw event data and enriches by adding process tree metadata """
+def enrich_event(event: Any) -> dict:
+    """ Takes the raw event data and enriches by adding process tree metadata
+
+    :param Any event: BPF event data
+    :return: event dictionary
+    """
     proctree_enriched = []
     error = ''
     try:
@@ -200,18 +217,25 @@ def enrich_event(event):
     }
 
 
-def print_enriched_event(b, out, plugins, cpu, data, size):
+def print_enriched_event(
+    b: BPF,
+    out: TextIO,
+    plugins: List[plugin.BasePlugin],
+    cpu: Any,
+    data: Any,
+    size: Any,
+):
     """ A callback for printing enriched event metadata, should be
     passed as a partial to the callback registering function as
-    `partial(print_enriched_event, b, out)` where `b` is the bpf
-    interface that's being polled and `out` is the output writer
-    (e.g. `sys.stdout`)
+    `partial(print_enriched_event, b, out)`.
 
-    The remaining three arguments (`cpu`, `data` and `size`) are
-    required for the callback, but only `data` is used to pull the
-    event out.
+    :param BPF b: BPF object from bcc-toolkit
+    :param file out: output stream
+    :param List[plugin.BasePlugin] plugins: list of loaded plugins
+    :param Any cpu: unused arg required for callback
+    :param Any data: BPF raw event
+    :param Any size: unused arg required for callback
     """
-
     event = b['events'].event(data)
     event = enrich_event(event)
     for event_plugin in plugins:
@@ -220,7 +244,7 @@ def print_enriched_event(b, out, plugins, cpu, data, size):
     out.flush()
 
 
-def main(args):
+def main(args: argparse.Namespace):
     signal.signal(signal.SIGINT, sigint_handler)
     config = parse_config(args.config)
     plugins = plugin.load_plugins(config.get('plugins', {}))
