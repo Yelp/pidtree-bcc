@@ -1,9 +1,16 @@
-language: generic
-dist: xenial
+---
+language: python
+python: ['3.5', '3.6', '3.7']
+install: sudo pip install tox-travis
+script: tox
 
-install:
-  - sudo apt-get -y install netcat-traditional
-  - sudo update-alternatives --set nc /bin/nc.traditional
-  - sudo pip install tox-travis
-#env: DEBUG=true
-script: sudo make test-all
+jobs:
+  include:
+    - name: itest
+      language: generic
+      dist: xenial
+      install:
+        - sudo apt-get -y install netcat-traditional
+        - sudo update-alternatives --set nc /bin/nc.traditional
+        - sudo pip install tox-travis
+      script: sudo make test-all
