@@ -1,6 +1,7 @@
-import importlib
 import sys
 from typing import List
+
+from pidtree_bcc.utils import find_subclass
 
 
 class BasePlugin:
@@ -47,11 +48,9 @@ def load_plugins(plugin_dict: dict, plugin_dir: str = 'pidtree_bcc.plugins') -> 
         )
         if not plugin_args.get('enabled', True):
             continue
-        plugin_classname = plugin_name.capitalize()
         import_line = '.'.join([plugin_dir, plugin_name])
         try:
-            module = importlib.import_module(import_line)
-            plugin = getattr(module, plugin_classname)(plugin_args)
+            plugin = find_subclass(import_line, BasePlugin)(plugin_args)
             plugins.append(plugin)
         except ImportError as e:
             error = RuntimeError(
@@ -60,10 +59,9 @@ def load_plugins(plugin_dict: dict, plugin_dir: str = 'pidtree_bcc.plugins') -> 
                     e=e,
                 ),
             )
-        except AttributeError as e:
+        except StopIteration as e:
             error = RuntimeError(
-                'Could not find class {plugin_classname} in module {import_line}: {e}'.format(
-                    plugin_classname=plugin_classname,
+                'Could not find plugin class in module {import_line}: {e}'.format(
                     import_line=import_line,
                     e=e,
                 ),

@@ -5,7 +5,7 @@ from typing import Tuple
 from pidtree_bcc.plugins import BasePlugin
 
 
-class Loginuidmap(BasePlugin):
+class LoginuidMap(BasePlugin):
     """ Plugin for mapping PID to loginuid and username """
 
     NO_LOGINUID = 4294967295  # unsigned -1
@@ -31,7 +31,7 @@ class Loginuidmap(BasePlugin):
         try:
             with open('/proc/{}/loginuid'.format(pid)) as f:
                 loginuid = int(f.read().strip())
-            if loginuid == Loginuidmap.NO_LOGINUID:
+            if loginuid == LoginuidMap.NO_LOGINUID:
                 return None, None
             return loginuid, pwd.getpwuid(loginuid).pw_name
         except Exception as e:
