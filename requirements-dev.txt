@@ -1,3 +1,4 @@
 -r requirements.txt
+coverage<5.0  # https://github.com/nedbat/coveragepy/issues/703
 pre-commit>1.0.0
 pytest
