@@ -50,7 +50,7 @@ class Sourceipmap(BasePlugin):
     """ Plugin for mapping source ip to a name """
 
     def __init__(self, args: dict):
-        self.validate_args(args)
+        super().__init__(args)
         self.hosts_dict = {}
         self.config_watchers = []
         self.attribute_key = args.get('attribute_key', 'source_host')
