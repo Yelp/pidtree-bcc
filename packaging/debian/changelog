@@ -1,3 +1,9 @@
+pidtree-bcc (0.7.1) unstable; urgency=medium
+
+  * Added loginuid plugin
+
+ -- Matteo Piano <mpiano@yelp.com>  Tue, 20 Oct 2020 04:19:57 -0700
+
 pidtree-bcc (0.7.0) unstable; urgency=medium
 
   * Removed llvm and lsb-release from dependencies
