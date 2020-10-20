@@ -176,13 +176,13 @@ def enrich_event(event):
     try:
         proc = psutil.Process(event.pid)
         proctree = utils.crawl_process_tree(proc)
-        proctree_enriched = list(
+        proctree_enriched = [
             {
-                'pid': p.pid, 'cmdline': ' '.join(
-                    p.cmdline(),
-                ), 'username':  p.username(),
+                'pid': p.pid,
+                'cmdline': ' '.join(p.cmdline()),
+                'username': p.username(),
             } for p in proctree
-        )
+        ]
     except Exception:
         error = traceback.format_exc()
     return {
