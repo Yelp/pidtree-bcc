@@ -10,7 +10,9 @@ class Loginuidmap(BasePlugin):
     NO_LOGINUID = 4294967295  # unsigned -1
 
     def process(self, event):
-        for proc in event['proctree']:
+        for proc in event['proctree']:  # proctree is sorted from leaf to root
+            if proc['pid'] == 1:
+                break
             loginuid, username = self._get_loginuid(proc['pid'])
             if loginuid is not None:
                 proc['loginuid'] = loginuid
