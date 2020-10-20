@@ -3,7 +3,7 @@ from functools import partial
 
 import staticconf
 
-from pidtree_bcc.plugin import BasePlugin
+from pidtree_bcc.plugins import BasePlugin
 
 
 def hosts_loader(filename: str) -> dict:

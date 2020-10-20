@@ -18,8 +18,9 @@ from bcc import BPF
 from jinja2 import Template
 
 from pidtree_bcc import __version__
-from pidtree_bcc import plugin
 from pidtree_bcc import utils
+from pidtree_bcc.plugins import BasePlugin
+from pidtree_bcc.plugins import load_plugins
 
 
 bpf_text = """
@@ -220,7 +221,7 @@ def enrich_event(event: Any) -> dict:
 def print_enriched_event(
     b: BPF,
     out: TextIO,
-    plugins: List[plugin.BasePlugin],
+    plugins: List[BasePlugin],
     cpu: Any,
     data: Any,
     size: Any,
@@ -247,7 +248,7 @@ def print_enriched_event(
 def main(args: argparse.Namespace):
     signal.signal(signal.SIGINT, sigint_handler)
     config = parse_config(args.config)
-    plugins = plugin.load_plugins(config.get('plugins', {}))
+    plugins = load_plugins(config.get('plugins', {}))
     global bpf_text
     expanded_bpf_text = Template(bpf_text).render(
         ip_to_int=ip_to_int,

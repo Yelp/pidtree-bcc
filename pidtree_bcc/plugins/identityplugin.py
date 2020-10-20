@@ -1,4 +1,4 @@
-from pidtree_bcc.plugin import BasePlugin
+from pidtree_bcc.plugins import BasePlugin
 
 
 class Identityplugin(BasePlugin):

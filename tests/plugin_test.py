@@ -1,6 +1,6 @@
 import pytest
 
-from pidtree_bcc.plugin import load_plugins
+from pidtree_bcc.plugins import load_plugins
 from pidtree_bcc.plugins.identityplugin import Identityplugin
 
 
