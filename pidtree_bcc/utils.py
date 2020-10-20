@@ -1,6 +1,9 @@
+import importlib
+import inspect
 import sys
 from typing import List
 from typing import TextIO
+from typing import Type
 
 import psutil
 
@@ -31,3 +34,21 @@ def smart_open(filename: str = None, mode: str = 'r') -> TextIO:
         return open(filename, mode)
     else:
         return sys.stdout
+
+
+def find_subclass(module_path: str, base_class: Type) -> Type:
+    """ Get child class from module
+
+    :param str module_path: module path in dot-notation
+    :param Type base_class: class the child class inherits from
+    :return: imported child class
+    :raise ImportError: module path not valid
+    :raise StopIteration: no class found
+    """
+    module = importlib.import_module(module_path)
+    return next(
+        obj for _, obj in inspect.getmembers(module)
+        if inspect.isclass(obj)
+        and issubclass(obj, base_class)
+        and obj != base_class
+    )

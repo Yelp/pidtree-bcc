@@ -201,3 +201,16 @@ plugins:
       - "/maps/ipmapping.txt"
     attribute_key: "source_container"
 ```
+
+### LoginuidMap
+This plugin adds `loginuid` information (the ID and the corresponding username)
+to the logged process data. It can be configured to either populate info just for
+the top level event (i.e. the leaf process in the tree) or to iterate over all
+tree nodes. The info will be stored in the `loginuid` and `loginname` fields.
+
+```yaml
+plugins:
+  loginuidmap:
+    enabled: True
+    top_level: [True|False]
+```
