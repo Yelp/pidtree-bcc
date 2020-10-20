@@ -1,5 +1,6 @@
 import pwd
 import sys
+from typing import Tuple
 
 from pidtree_bcc.plugin import BasePlugin
 
@@ -9,7 +10,8 @@ class Loginuidmap(BasePlugin):
 
     NO_LOGINUID = 4294967295  # unsigned -1
 
-    def process(self, event):
+    def process(self, event: dict) -> dict:
+        """ Adds loginuid info on process tree """
         for proc in event['proctree']:  # proctree is sorted from leaf to root
             if proc['pid'] == 1:
                 break
@@ -20,7 +22,7 @@ class Loginuidmap(BasePlugin):
         return event
 
     @staticmethod
-    def _get_loginuid(pid):
+    def _get_loginuid(pid: int) -> Tuple[int, str]:
         """ Given a PID get loginuid and corresponding username
 
         :param int pid: process ID:
