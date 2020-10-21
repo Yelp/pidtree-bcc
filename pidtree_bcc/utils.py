@@ -1,5 +1,7 @@
 import importlib
 import inspect
+import socket
+import struct
 import sys
 from typing import List
 from typing import TextIO
@@ -52,3 +54,12 @@ def find_subclass(module_path: str, base_class: Type) -> Type:
         and issubclass(obj, base_class)
         and obj != base_class
     )
+
+
+def ip_to_int(network: str) -> int:
+    """ Takes an IP and returns the unsigned integer encoding of the address
+
+    :param str network: ip address
+    :return: unsigned integer encoding
+    """
+    return struct.unpack('=L', socket.inet_aton(network))[0]

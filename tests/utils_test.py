@@ -34,3 +34,8 @@ def test_smart_open(this_file):
     assert utils.smart_open() == sys.stdout
     assert utils.smart_open('-') == sys.stdout
     assert utils.smart_open(this_file).name == this_file
+
+
+def test_ip_to_int():
+    assert utils.ip_to_int('127.0.0.1') == 16777343
+    assert utils.ip_to_int('10.10.10.10') == 168430090

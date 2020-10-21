@@ -34,7 +34,6 @@ function create_event {
   echo "Killing test connection"
   kill $CLIENT_PID
   pkill cat
-  rm -f $TEST_SERVER_FIFO_NAME
 }
 
 function cleanup {
@@ -43,7 +42,7 @@ function cleanup {
   echo "CLEANUP: Killing container"
   docker kill $CONTAINER_NAME
   echo "CLEANUP: Removing FIFO"
-  rm -f $FIFO_NAME
+  rm -f $FIFO_NAME $TEST_SERVER_FIFO_NAME
 }
 
 function wait_for_tame_output {
@@ -100,7 +99,7 @@ function main {
     cp $(ls -t packaging/dist/$1/*.deb | head -n 1) itest/dist/$1/
     docker build -t pidtree-itest-$1 -f itest/Dockerfile.ubuntu \
         --build-arg OS_RELEASE=${1/ubuntu_/} --build-arg HOSTRELEASE=$DISTRIB_CODENAME itest/
-    docker run --name $CONTAINER_NAME -d\
+    docker run --name $CONTAINER_NAME -d \
         --rm --privileged --cap-add sys_admin --pid host \
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
         -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
@@ -113,15 +112,18 @@ function main {
   timeout $TIMEOUT bash -c wait_for_tame_output &
   WAIT_FOR_OUTPUT_PID=$!
   create_event &
+  WAIT_FOR_MOCK_EVENT=$!
   set +e
   wait $WAIT_FOR_OUTPUT_PID
   if [ $? -ne 0 ]; then
     echo "FAILED! (timeout)"
-    exit 1
+    EXIT_CODE=1
   else
     echo "SUCCESS!"
-    exit 0
+    EXIT_CODE=0
   fi
+  wait $WAIT_FOR_MOCK_EVENT
+  exit $EXIT_CODE
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

@@ -20,6 +20,7 @@ setuptools.setup(
     packages=setuptools.find_packages(
         exclude=('tests*', 'itest*', 'packaging*'),
     ),
+    include_package_data=True,
     license='BSD 3-clause "New" or "Revised License"',
     scripts=['bin/pidtree-bcc'],
     classifiers=[

@@ -4,7 +4,7 @@ MAKEFLAGS += --warn-undefined-variables
 
 .PHONY: dev-env itest test test-all cook-image docker-run docker-run-with-fifo docker-interactive testhosts docker-run-testhosts clean clean-cache install-hooks
 FIFO = $(CURDIR)/pidtree-bcc.fifo
-EXTRA_DOCKER_ARGS? =
+EXTRA_DOCKER_ARGS ?=
 DOCKER_ARGS = $(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 HOST_OS_RELEASE = $(or $(shell cat /etc/lsb-release 2>/dev/null | grep -Po '(?<=CODENAME=)(.+)'), bionic)
 

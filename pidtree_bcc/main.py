@@ -1,134 +1,22 @@
 import argparse
-import json
+import logging
 import os
 import signal
-import socket
-import struct
 import sys
-import traceback
-from datetime import datetime
-from functools import partial
+import time
+from multiprocessing import Process
+from multiprocessing import SimpleQueue
 from typing import Any
-from typing import List
-from typing import TextIO
 
-import psutil
 import yaml
-from bcc import BPF
-from jinja2 import Template
 
 from pidtree_bcc import __version__
-from pidtree_bcc import utils
-from pidtree_bcc.plugins import BasePlugin
-from pidtree_bcc.plugins import load_plugins
+from pidtree_bcc.probes import BPFProbe
+from pidtree_bcc.utils import find_subclass
+from pidtree_bcc.utils import smart_open
 
 
-bpf_text = """
-
-#include <net/sock.h>
-#include <bcc/proto.h>
-
-// IPs and masks are given in integer notation with their dotted notation in the comment
-{% for filter in filters %}
-// {{ filter.get("description", filter["subnet_name"]) }}
-#define subnet_{{ filter["subnet_name"] }} {{ ip_to_int(filter["network"]) }} // {{ filter["network"] }}
-#define subnet_{{ filter["subnet_name"] }}_mask {{ ip_to_int(filter["network_mask"]) }} // {{ filter["network_mask"] }}
-{% endfor %}
-
-BPF_HASH(currsock, u32, struct sock *);
-BPF_PERF_OUTPUT(events);
-
-struct connection_t {
-    u32 pid;
-    u32 daddr;
-    u32 saddr;
-    u16 dport;
-};
-
-
-int kprobe__tcp_v4_connect(struct pt_regs *ctx, struct sock *sk)
-{
-    u32 pid = bpf_get_current_pid_tgid();
-    currsock.update(&pid, &sk);
-    return 0;
-};
-
-int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
-{
-    int ret = PT_REGS_RC(ctx);
-    u32 pid = bpf_get_current_pid_tgid();
-
-    struct sock **skpp;
-    skpp = currsock.lookup(&pid);
-    if (skpp == 0) return 0; // not there!
-    if (ret != 0) {
-        // failed to sync
-        currsock.delete(&pid);
-        return 0;
-    }
-
-    struct sock *skp = *skpp;
-    u32 saddr = 0, daddr = 0;
-    u16 dport = 0;
-    bpf_probe_read(&daddr, sizeof(daddr), &skp->__sk_common.skc_daddr);
-    bpf_probe_read(&dport, sizeof(dport), &skp->__sk_common.skc_dport);
-    //
-    // For each filter, drop the packet iff
-    // - a filter's subnet matches AND
-    // - the port is not one of the filter's excepted ports AND
-    // - the port is one of the filter's included ports, if they exist
-    //
-    if (0 // for easier templating
-    {% for filter in filters -%}
-         || ( (
-                subnet_{{ filter["subnet_name"] }}
-                & subnet_{{ filter["subnet_name"] }}_mask
-              ) == (daddr & subnet_{{ filter["subnet_name"] }}_mask)
-              && ( 1 == 1  // For easier templating
-                {% for port in filter.get('except_ports', []) -%}
-                && ntohs({{ port }}) != dport
-                {% endfor -%}
-              )
-              && (
-                {% if filter.get('include_ports') -%}
-                    0
-                    {% for port in filter.get('include_ports', []) -%}
-                      || ntohs({{ port }}) == dport
-                    {% endfor -%}
-                {% else -%}
-                1
-                {% endif -%}
-              )
-           )
-    {% endfor %} ) {
-        currsock.delete(&pid);
-        return 0;
-    }
-    {% if includeports != []: -%}
-    if ( 1
-    {% for port in includeports -%}
-        && ntohs({{ port }}) != dport
-    {% endfor %}) {
-        currsock.delete(&pid);
-        return 0;
-    }
-    {% endif -%}
-
-    bpf_probe_read(&saddr, sizeof(saddr), &skp->__sk_common.skc_rcv_saddr);
-
-    struct connection_t connection = {};
-    connection.pid = pid;
-    connection.dport = ntohs(dport);
-    connection.daddr = daddr;
-    connection.saddr = saddr;
-
-    events.perf_submit(ctx, &connection, sizeof(connection));
-
-    currsock.delete(&pid);
-
-    return 0;
-}
-"""
+PROBE_CHECK_PERIOD = 180  # seconds
 
 
 def parse_args() -> argparse.Namespace:
@@ -157,7 +45,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def parse_config(config_file: str) -> dict:
-    """ Parses yaml config file
+    """ Parses yaml config file (if indicated)
 
     :param str config_file: config file path
     :return: configuration dictionary
@@ -168,105 +56,58 @@ def parse_config(config_file: str) -> dict:
         return yaml.safe_load(f)
 
 
-def sigint_handler(signum: int, frame: Any):
-    """ Generic SIGINT handler """
-    sys.stderr.write('Caught SIGINT, exiting\n')
+def termination_handler(signum: int, frame: Any):
+    """ Generic termination signal handler
+
+    :param int signum: signal integer code
+    :param Any frame: signal stack frame
+    """
+    logging.warning('Caught termination signal, exiting')
     sys.exit(0)
-
-
-def ip_to_int(network: str) -> int:
-    """ Takes an IP and returns the unsigned integer encoding of the address
-
-    :param str network: ip address
-    :return: unsigned integer encoding
-    """
-    return struct.unpack('=L', socket.inet_aton(network))[0]
-
-
-def enrich_event(event: Any) -> dict:
-    """ Takes the raw event data and enriches by adding process tree metadata
-
-    :param Any event: BPF event data
-    :return: event dictionary
-    """
-    proctree_enriched = []
-    error = ''
-    try:
-        proc = psutil.Process(event.pid)
-        proctree = utils.crawl_process_tree(proc)
-        proctree_enriched = [
-            {
-                'pid': p.pid,
-                'cmdline': ' '.join(p.cmdline()),
-                'username': p.username(),
-            } for p in proctree
-        ]
-    except Exception:
-        error = traceback.format_exc()
-    return {
-        'timestamp': datetime.utcnow().isoformat() + 'Z',
-        'pid': event.pid,
-        'proctree': proctree_enriched,
-        # We're turning a little-endian insigned long ('<L')
-        # representation of the destination address sent from the
-        # kernel to a python `int` and then turning that into a string
-        # representation of an IP address:
-        'daddr': socket.inet_ntoa(struct.pack('<L', event.daddr)),
-        'saddr': socket.inet_ntoa(struct.pack('<L', event.saddr)),
-        'port': event.dport,
-        'error': error,
-    }
-
-
-def print_enriched_event(
-    b: BPF,
-    out: TextIO,
-    plugins: List[BasePlugin],
-    cpu: Any,
-    data: Any,
-    size: Any,
-):
-    """ A callback for printing enriched event metadata, should be
-    passed as a partial to the callback registering function as
-    `partial(print_enriched_event, b, out)`.
-
-    :param BPF b: BPF object from bcc-toolkit
-    :param file out: output stream
-    :param List[plugin.BasePlugin] plugins: list of loaded plugins
-    :param Any cpu: unused arg required for callback
-    :param Any data: BPF raw event
-    :param Any size: unused arg required for callback
-    """
-    event = b['events'].event(data)
-    event = enrich_event(event)
-    for event_plugin in plugins:
-        event = event_plugin.process(event)
-    print(json.dumps(event), file=out)
-    out.flush()
 
 
 def main(args: argparse.Namespace):
-    signal.signal(signal.SIGINT, sigint_handler)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    signal.signal(signal.SIGINT, termination_handler)
+    signal.signal(signal.SIGTERM, termination_handler)
     config = parse_config(args.config)
-    plugins = load_plugins(config.get('plugins', {}))
-    global bpf_text
-    expanded_bpf_text = Template(bpf_text).render(
-        ip_to_int=ip_to_int,
-        filters=config.get('filters', []),
-        includeports=config.get('includeports', []),
-    )
+    out = smart_open(args.output_file, mode='w')
+    output_queue = SimpleQueue()
+    probes = {
+        probe_name: find_subclass(
+            'pidtree_bcc.probes.{}'.format(probe_name),
+            BPFProbe,
+        )(output_queue, probe_config)
+        for probe_name, probe_config in config.items()
+        if not probe_name.startswith('_')
+    }
+    logging.info('Loaded probes: {}'.format(', '.join(probes)))
     if args.print_and_quit:
-        print(expanded_bpf_text)
+        for probe_name, probe in probes.items():
+            print('----- {} -----'.format(probe_name))
+            print(probe.expanded_bpf_text)
+            print('\n')
         sys.exit(0)
-    out = utils.smart_open(args.output_file, mode='w')
-    b = BPF(text=expanded_bpf_text)
-    b['events'].open_perf_buffer(
-        partial(print_enriched_event, b, out, plugins),
-    )
-    while True:
-        b.perf_buffer_poll()
-    out.close()
-    sys.exit(0)
+    probe_workers = []
+    for probe in probes.values():
+        probe_workers.append(Process(target=probe.start_polling))
+        probe_workers[-1].start()
+    try:
+        last_probe_check = time.time()
+        while True:
+            while time.time() - last_probe_check < PROBE_CHECK_PERIOD:
+                print(output_queue.get(), file=out)
+                out.flush()
+            if not all(worker.is_alive() for worker in probe_workers):
+                raise RuntimeError('Probe process terminated unexpectedly')
+    except Exception as e:
+        # Terminate everything if something goes wrong
+        logging.error('Encountered unexpected error: {}'.format(e))
+        for worker in probe_workers:
+            worker.terminate()
+        sys.exit(1)
+    finally:
+        out.close()
 
 
 if __name__ == '__main__':

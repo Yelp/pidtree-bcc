@@ -1,27 +1,28 @@
 ---
-filters:
-  - subnet_name: 10
-    network: 10.0.0.0
-    network_mask : 255.0.0.0
-    description: "all RFC 1918 10/8"
-  - subnet_name: 17216
-    network: 172.16.0.0
-    network_mask : 255.240.0.0
-    description: "all RFC 1918 172.16/12"
-  - subnet_name: 169254
-    network: 169.254.0.0
-    network_mask : 255.255.0.0
-    description: "all 169.254/16 loopback"
-  - subnet_name: 127
-    network: 127.0.0.0
-    network_mask : 255.0.0.0
-    description: "all 127/8 loopback"
+tcp_connect:
+  filters:
+    - subnet_name: 10
+      network: 10.0.0.0
+      network_mask : 255.0.0.0
+      description: "all RFC 1918 10/8"
+    - subnet_name: 17216
+      network: 172.16.0.0
+      network_mask : 255.240.0.0
+      description: "all RFC 1918 172.16/12"
+    - subnet_name: 169254
+      network: 169.254.0.0
+      network_mask : 255.255.0.0
+      description: "all 169.254/16 loopback"
+    - subnet_name: 127
+      network: 127.0.0.0
+      network_mask : 255.0.0.0
+      description: "all 127/8 loopback"
 
-plugins:
-  sourceipmap:
-    enabled: True
-    attribute_key: "source_container"
-    hostfiles:
-      - /maps/ipmapping.txt
-  identityplugin:
-    enabled: True
+  plugins:
+    sourceipmap:
+      enabled: True
+      attribute_key: "source_container"
+      hostfiles:
+        - /maps/ipmapping.txt
+    identityplugin:
+      enabled: True
