@@ -38,11 +38,12 @@ username associated with the process.
   - Destination IP `daddr`
   - Destination port `port`
 - Optional plugin system for enriching events in userland
-  - Included `sourceipmap` plugin for mapping source addres
+  - Included `sourceipmap` plugin for mapping source address
+  - Included `loginuidmap` plugin for adding loginuid info to process tree
 
 ## Caveats
-* bcc compiles your eBPF "program" to bytecode at runtime using LLVM,
-  and as such needs LLVM installed and the appropriate kernel headers.
+* bcc compiles your eBPF "program" to bytecode at runtime,
+  and as such needs the appropriate kernel headers installed on the host.
 * The current implementation only supports TCP and ipv4.
 * The userland daemon is likely susceptible to interference or denial of
   service, however the main aim of the project is to reduce the MTTR for
@@ -64,6 +65,12 @@ quick-start, there is a Dockerfile included and a make target (`make
 docker-run`) to launch pidtree-bcc. Following the thread here is the
 best way to get a full view of the requisite state of the system for
 pidtree-bcc to work.
+
+## Probes
+Pidtree-bcc implements a module probe system which allows multiple eBPF programs
+to be compiled and run in parallel. Probe loading is handled by the top-level keys
+in the configuration (see [`example_config.yml`](example_config.yml)).
+Currently, only the `tcp_connect` probe is implemented.
 
 ## Usage
 > CAUTION! The Makefile calls 'docker run' with `--priveleged`,
@@ -126,12 +133,13 @@ Additionally, you can make the filters apply only to certain ports, using except
 For example:
 
 ```yaml
-filters:
-  - subnet_name: 10
-    network: 10.0.0.0
-    network_mask : 255.0.0.0
-    description: "all RFC 1918 10/8"
-    except_ports: [80]
+tcp_connect:
+  filters:
+    - subnet_name: 10
+      network: 10.0.0.0
+      network_mask : 255.0.0.0
+      description: "all RFC 1918 10/8"
+      except_ports: [80]
 ```
 
 Would mean filter out all traffic from 10.0.0.0/8 except for that on port 80. If you changed except_ports
@@ -144,14 +152,15 @@ using the option `includeports`.
 Plugin configuration is populated using the `plugins` key at the top level of the configuration:
 
 ```yaml
-plugins:
-  somepluginname:
-    enabled: <True/False> #True by default
-    unload_on_init_exception: <True/False> #False by default
-    arg_1: "blah"
-    arg_2:
-      - some
-      - values
+...
+  plugins:
+    somepluginname:
+      enabled: <True/False> #True by default
+      unload_on_init_exception: <True/False> #False by default
+      arg_1: "blah"
+      arg_2:
+        - some
+        - values
     arg...
 ```
 
@@ -176,14 +185,15 @@ connections *can* be misattributed.
 To enable the `sourceipmap` plugin, simply include a `plugins` stanza in the config like so:
 
 ```yaml
-plugins:
-  sourceipmap:
-    enabled: True
-    hostfiles:
-      - "/etc/array"
-      - "/etc/of"
-      - "/etc/hostfiles"
-    attribute_key: "source_host"
+...
+  plugins:
+    sourceipmap:
+      enabled: True
+      hostfiles:
+        - "/etc/array"
+        - "/etc/of"
+        - "/etc/hostfiles"
+      attribute_key: "source_host"
 ```
 
 If you're looking to map source container names, you might want to try
@@ -194,12 +204,13 @@ seconds.
 If you then volume mount the *directory* that this file is in (the contents of the file will not update if you bind mount it in directly) to a location like `/maps`, you can then use a configuration like:
 
 ```yaml
-plugins:
-  sourceipmap:
-    enabled: True
-    hostfiles:
-      - "/maps/ipmapping.txt"
-    attribute_key: "source_container"
+...
+  plugins:
+    sourceipmap:
+      enabled: True
+      hostfiles:
+        - "/maps/ipmapping.txt"
+      attribute_key: "source_container"
 ```
 
 ### LoginuidMap
@@ -209,8 +220,9 @@ the top level event (i.e. the leaf process in the tree) or to iterate over all
 tree nodes. The info will be stored in the `loginuid` and `loginname` fields.
 
 ```yaml
-plugins:
-  loginuidmap:
-    enabled: True
-    top_level: [True|False]
+...
+  plugins:
+    loginuidmap:
+      enabled: True
+      top_level: [True|False]
 ```

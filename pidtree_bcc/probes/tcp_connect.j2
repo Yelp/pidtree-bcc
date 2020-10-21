@@ -1,0 +1,102 @@
+#include <net/sock.h>
+#include <bcc/proto.h>
+
+// IPs and masks are given in integer notation with their dotted notation in the comment
+{% for filter in filters %}
+// {{ filter.get("description", filter["subnet_name"]) }}
+#define subnet_{{ filter["subnet_name"] }} {{ ip_to_int(filter["network"]) }} // {{ filter["network"] }}
+#define subnet_{{ filter["subnet_name"] }}_mask {{ ip_to_int(filter["network_mask"]) }} // {{ filter["network_mask"] }}
+{% endfor %}
+
+BPF_HASH(currsock, u32, struct sock *);
+BPF_PERF_OUTPUT(events);
+
+struct connection_t {
+    u32 pid;
+    u32 daddr;
+    u32 saddr;
+    u16 dport;
+};
+
+int kprobe__tcp_v4_connect(struct pt_regs *ctx, struct sock *sk)
+{
+    u32 pid = bpf_get_current_pid_tgid();
+    currsock.update(&pid, &sk);
+    return 0;
+};
+
+int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
+{
+    int ret = PT_REGS_RC(ctx);
+    u32 pid = bpf_get_current_pid_tgid();
+
+    struct sock **skpp;
+    skpp = currsock.lookup(&pid);
+    if (skpp == 0) return 0; // not there!
+    if (ret != 0) {
+        // failed to sync
+        currsock.delete(&pid);
+        return 0;
+    }
+
+    struct sock *skp = *skpp;
+    u32 saddr = 0, daddr = 0;
+    u16 dport = 0;
+    bpf_probe_read(&daddr, sizeof(daddr), &skp->__sk_common.skc_daddr);
+    bpf_probe_read(&dport, sizeof(dport), &skp->__sk_common.skc_dport);
+    //
+    // For each filter, drop the packet iff
+    // - a filter's subnet matches AND
+    // - the port is not one of the filter's excepted ports AND
+    // - the port is one of the filter's included ports, if they exist
+    //
+    if (0 // for easier templating
+    {% for filter in filters -%}
+         || ( (
+                subnet_{{ filter["subnet_name"] }}
+                & subnet_{{ filter["subnet_name"] }}_mask
+              ) == (daddr & subnet_{{ filter["subnet_name"] }}_mask)
+              && ( 1 == 1  // For easier templating
+                {% for port in filter.get('except_ports', []) -%}
+                && ntohs({{ port }}) != dport
+                {% endfor -%}
+              )
+              && (
+                {% if filter.get('include_ports') -%}
+                    0
+                    {% for port in filter.get('include_ports', []) -%}
+                      || ntohs({{ port }}) == dport
+                    {% endfor -%}
+                {% else -%}
+                1
+                {% endif -%}
+              )
+           )
+    {% endfor %} ) {
+        currsock.delete(&pid);
+        return 0;
+    }
+    {% if includeports != []: -%}
+    if ( 1
+    {% for port in includeports -%}
+        && ntohs({{ port }}) != dport
+    {% endfor %}) {
+        currsock.delete(&pid);
+        return 0;
+    }
+    {% endif -%}
+
+    bpf_probe_read(&saddr, sizeof(saddr), &skp->__sk_common.skc_rcv_saddr);
+
+    struct connection_t connection = {};
+    connection.pid = pid;
+    connection.dport = ntohs(dport);
+    connection.daddr = daddr;
+    connection.saddr = saddr;
+
+    events.perf_submit(ctx, &connection, sizeof(connection));
+
+    currsock.delete(&pid);
+
+    return 0;
+}
