@@ -35,12 +35,11 @@ def test_plugins_exception_on_no_file():
     assert 'No module named ' in str(e)
 
 
-def test_plugins_exception_with_unload(capsys):
+def test_plugins_exception_with_unload(caplog):
     plugins = load_plugins({
         'please_dont_make_a_plugin_called_this': {'unload_on_init_exception': True},
         'identityplugin': {},
     })
-    captured = capsys.readouterr()
     assert len(plugins) == 1
     assert isinstance(plugins[0], Identityplugin)
-    assert 'Could not import pidtree_bcc.plugins.please_dont_make_a_plugin_called_this' in captured.err
+    assert 'Could not import pidtree_bcc.plugins.please_dont_make_a_plugin_called_this' in caplog.text

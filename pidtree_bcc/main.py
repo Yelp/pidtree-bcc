@@ -1,13 +1,12 @@
 import argparse
+import logging
 import os
 import signal
 import sys
-from functools import partial
+import time
 from multiprocessing import Process
 from multiprocessing import SimpleQueue
 from typing import Any
-from typing import List
-from typing import TextIO
 
 import yaml
 
@@ -15,6 +14,9 @@ from pidtree_bcc import __version__
 from pidtree_bcc.probes import BPFProbe
 from pidtree_bcc.utils import find_subclass
 from pidtree_bcc.utils import smart_open
+
+
+PROBE_CHECK_PERIOD = 180  # seconds
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,31 +56,22 @@ def parse_config(config_file: str) -> dict:
         return yaml.safe_load(f)
 
 
-def sigint_handler(
-    probe_workers: List[Process],
-    output_file: TextIO,
-    signum: int,
-    frame: Any,
-):
-    """ SIGINT handler
+def termination_handler(signum: int, frame: Any):
+    """ Generic termination signal handler
 
-    :param List[Process] probe_workers: list of sub-processes to terminate
-    :param TextIO output_file: event output file (to be closed)
     :param int signum: signal integer code
     :param Any frame: signal stack frame
     """
-    sys.stderr.write('Caught SIGINT, exiting\n')
-    for worker in probe_workers:
-        worker.terminate()
-    output_file.close()
+    logging.warning('Caught termination signal, exiting')
     sys.exit(0)
 
 
 def main(args: argparse.Namespace):
-    probe_workers = []
-    out = smart_open(args.output_file, mode='w')
-    signal.signal(signal.SIGINT, partial(sigint_handler, probe_workers, out))
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    signal.signal(signal.SIGINT, termination_handler)
+    signal.signal(signal.SIGTERM, termination_handler)
     config = parse_config(args.config)
+    out = smart_open(args.output_file, mode='w')
     output_queue = SimpleQueue()
     probes = {
         probe_name: find_subclass(
@@ -88,20 +81,33 @@ def main(args: argparse.Namespace):
         for probe_name, probe_config in config.items()
         if not probe_name.startswith('_')
     }
+    logging.info('Loaded probes: {}'.format(', '.join(probes)))
     if args.print_and_quit:
         for probe_name, probe in probes.items():
             print('----- {} -----'.format(probe_name))
             print(probe.expanded_bpf_text)
             print('\n')
         sys.exit(0)
+    probe_workers = []
     for probe in probes.values():
         probe_workers.append(Process(target=probe.start_polling))
         probe_workers[-1].start()
-    while True:
-        print(output_queue.get(), file=out)
-        out.flush()
-    out.close()
-    sys.exit(0)
+    try:
+        last_probe_check = time.time()
+        while True:
+            while time.time() - last_probe_check < PROBE_CHECK_PERIOD:
+                print(output_queue.get(), file=out)
+                out.flush()
+            if not all(worker.is_alive() for worker in probe_workers):
+                raise RuntimeError('Probe process terminated unexpectedly')
+    except Exception as e:
+        # Terminate everything if something goes wrong
+        logging.error('Encountered unexpected error: {}'.format(e))
+        for worker in probe_workers:
+            worker.terminate()
+        sys.exit(1)
+    finally:
+        out.close()
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-import sys
+import logging
 from typing import List
 
 from pidtree_bcc.utils import find_subclass
@@ -71,7 +71,7 @@ def load_plugins(plugin_dict: dict, plugin_dir: str = 'pidtree_bcc.plugins') -> 
         finally:
             if error:
                 if unload_on_init_exception:
-                    sys.stderr.write(str(error) + '\n')
+                    logging.error(str(error))
                 else:
                     raise error
     return plugins

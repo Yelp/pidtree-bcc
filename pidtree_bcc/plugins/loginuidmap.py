@@ -1,5 +1,5 @@
+import logging
 import pwd
-import sys
 from typing import Tuple
 
 from pidtree_bcc.plugins import BasePlugin
@@ -51,5 +51,5 @@ class LoginuidMap(BasePlugin):
                 return None, None
             return loginuid, pwd.getpwuid(loginuid).pw_name
         except Exception as e:
-            sys.stderr.write('Error fetching loginuid: {}'.format(e))
+            logging.error('Error fetching loginuid: {}'.format(e))
         return None, None
