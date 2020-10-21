@@ -1,3 +1,9 @@
+pidtree-bcc (1.0.0) unstable; urgency=medium
+
+  * Modular BPF probe system
+
+ -- Matteo Piano <mpiano@yelp.com>  Wed, 21 Oct 2020 08:41:16 -0700
+
 pidtree-bcc (0.7.2) unstable; urgency=medium
 
   * More flexible plugin loading
