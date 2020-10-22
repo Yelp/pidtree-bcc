@@ -1,3 +1,9 @@
+pidtree-bcc (1.0.1) unstable; urgency=medium
+
+  * Fix process keepalive bug (version 1.0.0 is badly broken)
+
+ -- Matteo Piano <mpiano@yelp.com>  Thu, 22 Oct 2020 07:08:28 -0700
+
 pidtree-bcc (1.0.0) unstable; urgency=medium
 
   * Modular BPF probe system
