@@ -93,8 +93,8 @@ def main(args: argparse.Namespace):
         probe_workers.append(Process(target=probe.start_polling))
         probe_workers[-1].start()
     try:
-        last_probe_check = time.time()
         while True:
+            last_probe_check = time.time()
             while time.time() - last_probe_check < PROBE_CHECK_PERIOD:
                 print(output_queue.get(), file=out)
                 out.flush()
