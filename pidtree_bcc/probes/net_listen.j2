@@ -1,0 +1,113 @@
+#include <net/sock.h>
+#include <bcc/proto.h>
+
+BPF_HASH(currsock, u32, struct sock*);
+BPF_PERF_OUTPUT(events);
+
+struct listen_bind_t {
+    u32 pid;
+    u32 laddr;
+    u16 port;
+    u8  protocol;
+};
+
+static u8 get_socket_protocol(struct sock *sk)
+{
+    // I'd love to be the one to have figured this out, I'm not
+    // https://github.com/iovisor/bcc/blob/v0.16.0/tools/tcpaccept.py#L115
+    u8 protocol;
+    int gso_max_segs_offset = offsetof(struct sock, sk_gso_max_segs);
+    int sk_lingertime_offset = offsetof(struct sock, sk_lingertime);
+    if (sk_lingertime_offset - gso_max_segs_offset == 4) {
+        protocol = *(u8 *)((u64)&sk->sk_gso_max_segs - 3);
+    } else {
+        protocol = *(u8 *)((u64)&sk->sk_wmem_queued - 3);
+    }
+    return protocol;
+}
+
+static void net_listen_event(struct pt_regs *ctx)
+{
+    u32 pid = bpf_get_current_pid_tgid();
+    struct sock** skp = currsock.lookup(&pid);
+    if (skp == 0) return;
+    int ret = PT_REGS_RC(ctx);
+    if (ret != 0) {
+        currsock.delete(&pid);
+        return;
+    }
+    u32 laddr = 0;
+    u16 port = 0;
+    struct sock* sk = *skp;
+    bpf_probe_read(&laddr, sizeof(u32), &sk->__sk_common.skc_rcv_saddr);
+    bpf_probe_read(&port, sizeof(u16), &sk->__sk_common.skc_num);
+
+    {% if excludeaddress or excludeports -%}
+    if (0
+    {% for addr in excludeaddress -%}
+        || laddr == {{ ip_to_int(addr) }}
+    {% endfor -%}
+    {% for port in excludeports -%}
+        {%- set port = port | string -%}
+        {% if '-' in port -%}
+            {%- set from_port, to_port = port.split('-') -%}
+            || (port >= {{ from_port }} && port <= {{ to_port }})
+        {% else -%}
+            || port == {{ port }}
+        {% endif -%}
+    {%- endfor -%}
+    ) {
+        currsock.delete(&pid);
+        return;
+    }
+    {% endif -%}
+
+    struct listen_bind_t listen = {};
+    listen.pid = pid;
+    listen.port = port;
+    listen.laddr = laddr;
+    listen.protocol = get_socket_protocol(sk);
+    events.perf_submit(ctx, &listen, sizeof(listen));
+    currsock.delete(&pid);
+}
+
+{% if 'udp' in protocols -%}
+int kprobe__inet_bind(
+    struct pt_regs *ctx,
+    struct socket *sock,
+    const struct sockaddr *addr,
+    int addrlen)
+{
+    struct sock* sk = sock->sk;
+    u8 protocol = get_socket_protocol(sk);
+    if (sk->__sk_common.skc_family == AF_INET && protocol == IPPROTO_UDP) {
+        u32 pid = bpf_get_current_pid_tgid();
+        currsock.update(&pid, &sk);
+    }
+    return 0;
+}
+
+int kretprobe__inet_bind(struct pt_regs *ctx)
+{
+    net_listen_event(ctx);
+    return 0;
+}
+{% endif -%}
+
+{% if 'tcp' in protocols -%}
+int kprobe__inet_listen(struct pt_regs *ctx, struct socket *sock, int backlog)
+{
+    struct sock* sk = sock->sk;
+    if (sk->__sk_common.skc_family == AF_INET) {
+        u32 pid = bpf_get_current_pid_tgid();
+        currsock.update(&pid, &sk);
+    }
+    return 0;
+}
+
+int kretprobe__inet_listen(struct pt_regs *ctx)
+{
+    net_listen_event(ctx);
+    return 0;
+}
+{% endif -%}

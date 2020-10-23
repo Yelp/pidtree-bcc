@@ -1,3 +1,5 @@
+import inspect
+import socket
 import traceback
 from typing import Any
 
@@ -7,16 +9,22 @@ from pidtree_bcc.utils import int_to_ip
 from pidtree_bcc.utils import ip_to_int
 
 
-class TCPConnectProbe(BPFProbe):
+class NetListenProbe(BPFProbe):
 
+    PROTO_MAP = {
+        value: name.split('_')[1].lower()
+        for name, value in inspect.getmembers(socket)
+        if name.startswith('IPPROTO_')
+    }
     CONFIG_DEFAULTS = {
         'ip_to_int': ip_to_int,
-        'filters': [],
-        'includeports': [],
+        'protocols': ['tcp'],
+        'excludeaddress': [],
+        'excludeports': [],
     }
 
     def enrich_event(self, event: Any) -> dict:
-        """ Parses TCP connect event and adds process tree data
+        """ Parses network "listen event" and adds process tree data
 
         :param Any event: BPF event
         :return: event dictionary with process tree
@@ -29,13 +37,9 @@ class TCPConnectProbe(BPFProbe):
             proctree = []
         return {
             'pid': event.pid,
+            'port': event.port,
             'proctree': proctree,
-            # We're turning a little-endian insigned long ('<L')
-            # representation of the destination address sent from the
-            # kernel to a python `int` and then turning that into a string
-            # representation of an IP address:
-            'daddr': int_to_ip(event.daddr),
-            'saddr': int_to_ip(event.saddr),
-            'port': event.dport,
+            'laddr': int_to_ip(event.laddr),
+            'protocol': self.PROTO_MAP.get(event.protocol, 'unknown'),
             'error': error,
         }

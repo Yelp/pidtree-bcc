@@ -1,39 +1,45 @@
 #!/bin/bash -eE
 
-export FIFO_NAME=itest/itest_output_$$
-export TEST_SERVER_FIFO_NAME=itest/itest_server_$$
-export TEST_PORT=${TEST_PORT:-31337}
+export OUTPUT_NAME=itest/itest_output_$$
+export TEST_CONNECT_PORT=${TEST_CONNECT_PORT:-31337}
+export TEST_LISTEN_PORT=${TEST_LISTEN_PORT:-41337}
+export TEST_LISTEN_TIMEOUT=${TEST_LISTEN_TIMEOUT:-5}
 export DEBUG=${DEBUG:-false}
 export CONTAINER_NAME=pidtree-itest_$1_$$
 export TOPLEVEL=$(git rev-parse --show-toplevel)
 
 # The container takes a while to bootstrap so we have to wait before we emit the test event
-SPIN_UP_TIME=10
+SPIN_UP_TIME=5
 # We also need to timout the test if the test event *isn't* caught
 TIMEOUT=$(( SPIN_UP_TIME + 5 ))
+# Format: test_name:test_event_generator:test_flag_to_match
+TEST_CASES=(
+  "tcp_connect:create_connect_event:nc -w 1 127.1.33.7 $TEST_CONNECT_PORT"
+  "net_listen:create_listen_event:nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_LISTEN_PORT"
+)
 
 function is_port_used {
   USED_PORTS=$(ss -4lnt | awk 'FS="[[:space:]]+" { print $4 }' | cut -d: -f2 | sort)
-  if [ "$(echo "$USED_PORTS" | grep -E "^${TEST_PORT}\$")" = "$TEST_PORT" ]; then
-    echo "ERROR: TEST_PORT=$TEST_PORT already in use, please reassign and try again"
+  if [ "$(echo "$USED_PORTS" | grep -E "^${1}\$")" = "$1" ]; then
+    echo "ERROR: port $1 already in use, please reassign and try again"
     exit 2
   fi
 }
 
-function create_event {
+function create_connect_event {
   echo "Creating test listener"
-  mkfifo $TEST_SERVER_FIFO_NAME
-  cat $TEST_SERVER_FIFO_NAME | nc -l -p $TEST_PORT &
-  echo "Sleeping $SPIN_UP_TIME for pidtree-bcc to start"
-  sleep $SPIN_UP_TIME
+  nc -w $TEST_LISTEN_TIMEOUT -l -p $TEST_CONNECT_PORT &
+  listener_pid=$!
+  sleep 1
   echo "Making test connection"
-  nc 127.1.33.7 $TEST_PORT & > /dev/null
-  CLIENT_PID=$!
-  echo "lolz" > $TEST_SERVER_FIFO_NAME
-  sleep 3
-  echo "Killing test connection"
-  kill $CLIENT_PID
-  pkill cat
+  nc -w 1 127.1.33.7 $TEST_CONNECT_PORT
+  wait $listener_pid
+}
+
+function create_listen_event {
+  echo "Creating test listener"
+  sleep 1
+  nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_LISTEN_PORT
 }
 
 function cleanup {
@@ -42,23 +48,19 @@ function cleanup {
   echo "CLEANUP: Killing container"
   docker kill $CONTAINER_NAME
   echo "CLEANUP: Removing FIFO"
-  rm -f $FIFO_NAME $TEST_SERVER_FIFO_NAME
+  rm -f $OUTPUT_NAME
 }
 
 function wait_for_tame_output {
-  RESULTS=0
-  echo "Tailing output FIFO $FIFO_NAME to catch test traffic"
-  while read line; do
-    RESULTS="$(echo "$line" | jq -r ". | select( .daddr == \"127.1.33.7\" ) | select( .port == $TEST_PORT) | .proctree[0].cmdline" 2>&1)"
-    if [ "$RESULTS" = "nc 127.1.33.7 $TEST_PORT" ]; then
-      echo "Caught test traffic on 127.1.33.7:$TEST_PORT!"
-      return 0
+  echo "Tailing output $OUTPUT_NAME to catch test traffic '$1'"
+  tail -n0 -f $OUTPUT_NAME | while read line; do
+    if echo "$line" | grep "$1"; then
+      echo "Caught test traffic matching '$1'"
+      exit 0
     elif [ "$DEBUG" = "true" ]; then
-      echo "DEBUG: \$RESULTS is $RESULTS"
       echo "DEBUG: \$line is $line"
     fi
-  done < "$FIFO_NAME"
-  return 1
+  done
 }
 
 function main {
@@ -67,9 +69,10 @@ function main {
     exit 1
   fi
   trap cleanup EXIT
-  is_port_used
+  is_port_used $TEST_CONNECT_PORT
+  is_port_used $TEST_LISTEN_PORT
   if [ "$DEBUG" = "true" ]; then set -x; fi
-  mkfifo $FIFO_NAME
+  touch $OUTPUT_NAME
   if [[ "$1" = "docker" ]]; then
     echo "Building itest image"
     # Build the base image
@@ -86,7 +89,7 @@ function main {
     docker run --name $CONTAINER_NAME -d\
         --rm --privileged --cap-add sys_admin --pid host \
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
-        -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
+        -v $TOPLEVEL/$OUTPUT_NAME:/work/outfile \
         pidtree-itest -c /work/config.yml -f /work/outfile
   elif [[ "$1" = "ubuntu_xenial" || "$1" = "ubuntu_bionic" ]]; then
     if [ -f /etc/lsb-release ]; then
@@ -102,27 +105,35 @@ function main {
     docker run --name $CONTAINER_NAME -d \
         --rm --privileged --cap-add sys_admin --pid host \
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
-        -v $TOPLEVEL/$FIFO_NAME:/work/outfile \
+        -v $TOPLEVEL/$OUTPUT_NAME:/work/outfile \
         -v $TOPLEVEL/itest/dist/$1/:/work/dist \
         -v $TOPLEVEL/itest/deb_package_itest.sh:/work/deb_package_itest.sh \
         pidtree-itest-$1 /work/deb_package_itest.sh run -c /work/config.yml -f /work/outfile
   fi
+  echo "Sleeping $SPIN_UP_TIME seconds for pidtree-bcc to start"
+  sleep $SPIN_UP_TIME
   export -f wait_for_tame_output
   export -f cleanup
-  timeout $TIMEOUT bash -c wait_for_tame_output &
-  WAIT_FOR_OUTPUT_PID=$!
-  create_event &
-  WAIT_FOR_MOCK_EVENT=$!
-  set +e
-  wait $WAIT_FOR_OUTPUT_PID
-  if [ $? -ne 0 ]; then
-    echo "FAILED! (timeout)"
-    EXIT_CODE=1
-  else
-    echo "SUCCESS!"
-    EXIT_CODE=0
-  fi
-  wait $WAIT_FOR_MOCK_EVENT
+  EXIT_CODE=0
+  for test_case in "${TEST_CASES[@]}"; do
+    test_name=$(echo "$test_case" | cut -d: -f1)
+    test_event=$(echo "$test_case" | cut -d: -f2)
+    test_check=$(echo "$test_case" | cut -d: -f3)
+    timeout $TIMEOUT bash -c "wait_for_tame_output '$test_check'" &
+    WAIT_FOR_OUTPUT_PID=$!
+    $test_event &
+    WAIT_FOR_MOCK_EVENT=$!
+    set +e
+    wait $WAIT_FOR_OUTPUT_PID
+    if [ $? -ne 0 ]; then
+      echo "$test_name: FAILED! (timeout)"
+      EXIT_CODE=1
+    else
+      echo "$test_name: SUCCESS!"
+      EXIT_CODE=0
+    fi
+    wait $WAIT_FOR_MOCK_EVENT
+  done
   exit $EXIT_CODE
 }
 
