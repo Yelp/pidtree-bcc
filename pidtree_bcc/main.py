@@ -6,7 +6,9 @@ import sys
 import time
 from multiprocessing import Process
 from multiprocessing import SimpleQueue
+from threading import Thread
 from typing import Any
+from typing import List
 
 import yaml
 
@@ -16,7 +18,8 @@ from pidtree_bcc.utils import find_subclass
 from pidtree_bcc.utils import smart_open
 
 
-PROBE_CHECK_PERIOD = 180  # seconds
+EXIT_CODE = 0
+PROBE_CHECK_PERIOD = 60  # seconds
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,7 +66,24 @@ def termination_handler(signum: int, frame: Any):
     :param Any frame: signal stack frame
     """
     logging.warning('Caught termination signal, exiting')
-    sys.exit(0)
+    sys.exit(EXIT_CODE)
+
+
+def probe_watchdog(probe_workers: List[Process]):
+    """ Check that probe processes are alive
+
+    :param List[Process] probe_workers: list of probe processes
+    """
+    global EXIT_CODE
+    while True:
+        time.sleep(PROBE_CHECK_PERIOD)
+        if not all(worker.is_alive() for worker in probe_workers):
+            EXIT_CODE = 1
+            logging.error('Probe terminated unexpectedly, quitting')
+            for worker in probe_workers:
+                worker.terminate()
+            os.kill(os.getpid(), signal.SIGINT)
+            break
 
 
 def main(args: argparse.Namespace):
@@ -92,14 +112,12 @@ def main(args: argparse.Namespace):
     for probe in probes.values():
         probe_workers.append(Process(target=probe.start_polling))
         probe_workers[-1].start()
+    watchdog_thread = Thread(target=probe_watchdog, args=(probe_workers,), daemon=True)
+    watchdog_thread.start()
     try:
         while True:
-            last_probe_check = time.time()
-            while time.time() - last_probe_check < PROBE_CHECK_PERIOD:
-                print(output_queue.get(), file=out)
-                out.flush()
-            if not all(worker.is_alive() for worker in probe_workers):
-                raise RuntimeError('Probe process terminated unexpectedly')
+            print(output_queue.get(), file=out)
+            out.flush()
     except Exception as e:
         # Terminate everything if something goes wrong
         logging.error('Encountered unexpected error: {}'.format(e))
