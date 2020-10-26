@@ -3,29 +3,33 @@ import inspect
 import socket
 import struct
 import sys
-from typing import Generator
+from typing import List
 from typing import TextIO
 from typing import Type
 
 import psutil
 
 
-def crawl_process_tree(pid: int) -> Generator[dict, None, None]:
+def crawl_process_tree(pid: int) -> List[dict]:
     """ Takes a process and returns all process ancestry until the ppid is 0
 
     :param int pid: child process ID
     :return: yields dicts with pid, cmdline and username navigating up the tree
     """
+    result = []
     while True:
         if pid == 0:
             break
         proc = psutil.Process(pid)
-        yield {
-            'pid': proc.pid,
-            'cmdline': ' '.join(proc.cmdline()),
-            'username': proc.username(),
-        }
+        result.append(
+            {
+                'pid': proc.pid,
+                'cmdline': ' '.join(proc.cmdline()),
+                'username': proc.username(),
+            },
+        )
         pid = proc.ppid()
+    return result
 
 
 def smart_open(filename: str = None, mode: str = 'r') -> TextIO:

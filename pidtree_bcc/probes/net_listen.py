@@ -31,7 +31,7 @@ class NetListenProbe(BPFProbe):
         """
         error = ''
         try:
-            proctree = list(crawl_process_tree(event.pid))
+            proctree = crawl_process_tree(event.pid)
         except Exception:
             error = traceback.format_exc()
             proctree = []

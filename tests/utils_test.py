@@ -6,7 +6,7 @@ from pidtree_bcc import utils
 
 def test_crawl_process_tree():
     this_pid = os.getpid()
-    tree = list(utils.crawl_process_tree(this_pid))
+    tree = utils.crawl_process_tree(this_pid)
     assert len(tree) >= 1
     assert tree[0]['pid'] == this_pid
     assert tree[-1]['pid'] == 1  # should be init
