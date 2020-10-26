@@ -56,6 +56,7 @@ function wait_for_tame_output {
   tail -n0 -f $OUTPUT_NAME | while read line; do
     if echo "$line" | grep "$1"; then
       echo "Caught test traffic matching '$1'"
+      pkill -x --parent $$ tail
       exit 0
     elif [ "$DEBUG" = "true" ]; then
       echo "DEBUG: \$line is $line"
