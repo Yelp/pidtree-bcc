@@ -37,6 +37,11 @@ username associated with the process.
   - Source IP `saddr`
   - Destination IP `daddr`
   - Destination port `port`
+- Full process tree attestation for IPv4 TCP/UDP listeners with the
+  same process metadata as above and
+  - Local bind address `laddr`
+  - Listening port `port`
+  - Network protocol `protocol` (e.g. tcp)
 - Optional plugin system for enriching events in userland
   - Included `sourceipmap` plugin for mapping source address
   - Included `loginuidmap` plugin for adding loginuid info to process tree
@@ -44,7 +49,7 @@ username associated with the process.
 ## Caveats
 * bcc compiles your eBPF "program" to bytecode at runtime,
   and as such needs the appropriate kernel headers installed on the host.
-* The current implementation only supports TCP and ipv4.
+* The current probe implementations only support IPv4.
 * The userland daemon is likely susceptible to interference or denial of
   service, however the main aim of the project is to reduce the MTTR for
   "business as usual" events - that is to make so engineers spend less time
@@ -70,7 +75,7 @@ pidtree-bcc to work.
 Pidtree-bcc implements a module probe system which allows multiple eBPF programs
 to be compiled and run in parallel. Probe loading is handled by the top-level keys
 in the configuration (see [`example_config.yml`](example_config.yml)).
-Currently, only the `tcp_connect` probe is implemented.
+Currently, this repository implements the `tcp_connect` and `net_listen` probes.
 
 ## Usage
 > CAUTION! The Makefile calls 'docker run' with `--priveleged`,
@@ -119,7 +124,8 @@ making TCP ipv4 `connect` syscalls like this one of me connecting to Freenode in
   "daddr": "185.30.166.37",
   "saddr": "X.X.X.X",
   "error": "",
-  "port": 6697
+  "port": 6697,
+  "probe": "tcp_connect"
 }
 ```
 

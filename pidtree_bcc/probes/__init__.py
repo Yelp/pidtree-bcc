@@ -1,6 +1,8 @@
 import inspect
 import json
+import os.path
 import re
+from datetime import datetime
 from multiprocessing import SimpleQueue
 from typing import Any
 
@@ -27,11 +29,14 @@ class BPFProbe:
                                   all fields are passed to the template engine with the exception
                                   of "plugins". This behaviour can be overidden with the TEMPLATE_VARS
                                   class variable defining a list of config fields.
+                                  It is possible for child class to define a CONFIG_DEFAULTS class
+                                  variable containing default templating variables.
         """
         self.output_queue = output_queue
         self.plugins = load_plugins(probe_config.get('plugins', {}))
+        module_src = inspect.getsourcefile(type(self))
+        self.probe_name = os.path.basename(module_src).split('.')[0]
         if not hasattr(self, 'BPF_TEXT'):
-            module_src = inspect.getsourcefile(type(self))
             with open(re.sub(r'\.py$', '.j2', module_src)) as f:
                 self.BPF_TEXT = f.read()
         if hasattr(self, 'TEMPLATE_VARS'):
@@ -39,6 +44,8 @@ class BPFProbe:
         else:
             template_config = probe_config.copy()
             template_config.pop('plugins', None)
+        if hasattr(self, 'CONFIG_DEFAULTS'):
+            template_config = {**self.CONFIG_DEFAULTS, **template_config}
         self.expanded_bpf_text = Template(self.BPF_TEXT).render(**template_config)
 
     def _process_events(self, cpu: Any, data: Any, size: Any):
@@ -50,6 +57,8 @@ class BPFProbe:
         """
         event = self.bpf['events'].event(data)
         event = self.enrich_event(event)
+        event['timestamp'] = datetime.utcnow().isoformat() + 'Z'
+        event['probe'] = self.probe_name
         for event_plugin in self.plugins:
             event = event_plugin.process(event)
         self.output_queue.put(json.dumps(event))

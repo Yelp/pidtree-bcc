@@ -10,19 +10,26 @@ from typing import Type
 import psutil
 
 
-def crawl_process_tree(proc: psutil.Process) -> List[psutil.Process]:
+def crawl_process_tree(pid: int) -> List[dict]:
     """ Takes a process and returns all process ancestry until the ppid is 0
 
-    :param psutil.Process proc: child process
-    :return: process tree as a list
+    :param int pid: child process ID
+    :return: yields dicts with pid, cmdline and username navigating up the tree
     """
-    procs = [proc]
+    result = []
     while True:
-        ppid = procs[len(procs)-1].ppid()
-        if ppid == 0:
+        if pid == 0:
             break
-        procs.append(psutil.Process(ppid))
-    return procs
+        proc = psutil.Process(pid)
+        result.append(
+            {
+                'pid': proc.pid,
+                'cmdline': ' '.join(proc.cmdline()),
+                'username': proc.username(),
+            },
+        )
+        pid = proc.ppid()
+    return result
 
 
 def smart_open(filename: str = None, mode: str = 'r') -> TextIO:
@@ -63,3 +70,12 @@ def ip_to_int(network: str) -> int:
     :return: unsigned integer encoding
     """
     return struct.unpack('=L', socket.inet_aton(network))[0]
+
+
+def int_to_ip(encoded_ip: int) -> str:
+    """ Takes IP in interger representation and makes it human readable
+
+    :param int encoded_ip: integer encoded IP
+    :return: dot-notation IP
+    """
+    return socket.inet_ntoa(struct.pack('<L', encoded_ip))
