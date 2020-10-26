@@ -1,3 +1,9 @@
+pidtree-bcc (1.1.0) unstable; urgency=medium
+
+  * Added probe for network listen events
+
+ -- Matteo Piano <mpiano@yelp.com>  Mon, 26 Oct 2020 04:51:31 -0700
+
 pidtree-bcc (1.0.2) unstable; urgency=medium
 
   * Move probe keepalive checks to separate thread
