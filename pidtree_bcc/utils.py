@@ -1,8 +1,11 @@
+import functools
 import importlib
 import inspect
+import logging
 import socket
 import struct
 import sys
+from typing import Callable
 from typing import List
 from typing import TextIO
 from typing import Type
@@ -79,3 +82,17 @@ def int_to_ip(encoded_ip: int) -> str:
     :return: dot-notation IP
     """
     return socket.inet_ntoa(struct.pack('<L', encoded_ip))
+
+
+def never_crash(func: Callable) -> Callable:
+    """ Decorator for Thread targets which ensures the thread keeps
+    running by chatching any exception.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                logging.error('Error executing {}: {}'.format(func.__name__, e))
+    return wrapper
