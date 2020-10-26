@@ -1,7 +1,7 @@
 ---
 language: python
 python: ['3.5', '3.6', '3.7']
-install: sudo pip install tox-travis
+install: pip install tox-travis
 script: tox
 
 jobs:
