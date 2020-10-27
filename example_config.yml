@@ -24,6 +24,7 @@ tcp_connect:
         - '/etc/hosts'
       attribute_key: "source_host"
 net_listen:
+  snapshot_periodicity: 43200
   protocols: [tcp]
   excludeports:
     - 22222

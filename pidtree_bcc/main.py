@@ -13,8 +13,7 @@ from typing import List
 import yaml
 
 from pidtree_bcc import __version__
-from pidtree_bcc.probes import BPFProbe
-from pidtree_bcc.utils import find_subclass
+from pidtree_bcc.probes import load_probes
 from pidtree_bcc.utils import smart_open
 
 
@@ -36,6 +35,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '-f', '--output_file', type=str, default='-',
         help='File to output to (default is STDOUT, denoted by -)',
+    )
+    parser.add_argument(
+        '--extra-probe-path', type=str,
+        help='Extra dot-notation package path where to look for probes to load',
+    )
+    parser.add_argument(
+        '--extra-plugin-path', type=str,
+        help='Extra dot-notation package path where to look for plugins to load',
     )
     parser.add_argument(
         '-v', '--version', action='version',
@@ -93,14 +100,12 @@ def main(args: argparse.Namespace):
     config = parse_config(args.config)
     out = smart_open(args.output_file, mode='w')
     output_queue = SimpleQueue()
-    probes = {
-        probe_name: find_subclass(
-            'pidtree_bcc.probes.{}'.format(probe_name),
-            BPFProbe,
-        )(output_queue, probe_config)
-        for probe_name, probe_config in config.items()
-        if not probe_name.startswith('_')
-    }
+    probes = load_probes(
+        config,
+        output_queue,
+        args.extra_probe_path,
+        args.extra_plugin_path,
+    )
     logging.info('Loaded probes: {}'.format(', '.join(probes)))
     if args.print_and_quit:
         for probe_name, probe in probes.items():

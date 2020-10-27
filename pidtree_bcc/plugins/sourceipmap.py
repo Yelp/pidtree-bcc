@@ -49,6 +49,8 @@ def build_configuration(filename: str, namespace: str) -> staticconf.config.Conf
 class Sourceipmap(BasePlugin):
     """ Plugin for mapping source ip to a name """
 
+    PROBE_SUPPORT = ('tcp_connect',)
+
     def __init__(self, args: dict):
         super().__init__(args)
         self.hosts_dict = {}

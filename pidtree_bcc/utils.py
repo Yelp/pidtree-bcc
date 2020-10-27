@@ -1,11 +1,15 @@
+import functools
 import importlib
 import inspect
+import logging
 import socket
 import struct
 import sys
+from typing import Callable
 from typing import List
 from typing import TextIO
 from typing import Type
+from typing import Union
 
 import psutil
 
@@ -45,16 +49,30 @@ def smart_open(filename: str = None, mode: str = 'r') -> TextIO:
         return sys.stdout
 
 
-def find_subclass(module_path: str, base_class: Type) -> Type:
+def find_subclass(module_path: Union[str, List[str]], base_class: Type) -> Type:
     """ Get child class from module
 
-    :param str module_path: module path in dot-notation
+    :param Union[str, List[str]] module_path: module path or list of paths in dot-notation
     :param Type base_class: class the child class inherits from
     :return: imported child class
     :raise ImportError: module path not valid
     :raise StopIteration: no class found
     """
-    module = importlib.import_module(module_path)
+    if isinstance(module_path, str):
+        module_path = [module_path]
+    errors = ''
+    module = None
+    for path in module_path:
+        try:
+            module = importlib.import_module(path)
+            break
+        except ImportError as e:
+            errors += '\n' + str(e)
+    if module is None:
+        raise ImportError(
+            'Unable to load any module from {}: {}'
+            .format(module_path, errors),
+        )
     return next(
         obj for _, obj in inspect.getmembers(module)
         if inspect.isclass(obj)
@@ -79,3 +97,17 @@ def int_to_ip(encoded_ip: int) -> str:
     :return: dot-notation IP
     """
     return socket.inet_ntoa(struct.pack('<L', encoded_ip))
+
+
+def never_crash(func: Callable) -> Callable:
+    """ Decorator for Thread targets which ensures the thread keeps
+    running by chatching any exception.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                logging.error('Error executing {}: {}'.format(func.__name__, e))
+    return wrapper

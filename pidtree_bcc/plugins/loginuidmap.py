@@ -8,6 +8,7 @@ from pidtree_bcc.plugins import BasePlugin
 class LoginuidMap(BasePlugin):
     """ Plugin for mapping PID to loginuid and username """
 
+    PROBE_SUPPORT = ('tcp_connect', 'net_listen')
     NO_LOGINUID = 4294967295  # unsigned -1
 
     def __init__(self, args: dict):

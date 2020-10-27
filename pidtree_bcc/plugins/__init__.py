@@ -6,6 +6,10 @@ from pidtree_bcc.utils import find_subclass
 
 class BasePlugin:
 
+    # Specifies which probes are compatible with the plugin
+    # Set to "*" to allow all probes
+    PROBE_SUPPORT = tuple()
+
     def __init__(self, args: dict):
         """ Constructor
 
@@ -31,13 +35,14 @@ class BasePlugin:
         pass
 
 
-def load_plugins(plugin_dict: dict, plugin_dir: str = 'pidtree_bcc.plugins') -> List[BasePlugin]:
+def load_plugins(plugin_dict: dict, calling_probe: str, extra_plugin_path: str = None) -> List[BasePlugin]:
     """ Load and configure plugins
 
     :param dict plugin_dict: where the keys are plugin names and the value
                              for each key is another dict of kwargs. Each key
                              must match a `.py` file in the plugin directory
-    :param str plugin_dir: (optional) module path for plugins
+    :param str calling_probe: name of the calling probe for support validation
+    :param str extra_plugin_path: (optional) extra package path where to look for plugins
     :return: list of loaded plugins
     """
     plugins = []
@@ -48,23 +53,27 @@ def load_plugins(plugin_dict: dict, plugin_dir: str = 'pidtree_bcc.plugins') -> 
         )
         if not plugin_args.get('enabled', True):
             continue
-        import_line = '.'.join([plugin_dir, plugin_name])
+        plugin_packages = [
+            '{}.{}'.format(p, plugin_name)
+            for p in (__package__, extra_plugin_path) if p
+        ]
         try:
-            plugin = find_subclass(import_line, BasePlugin)(plugin_args)
-            plugins.append(plugin)
+            plugin_class = find_subclass(plugin_packages, BasePlugin)
+            if plugin_class.PROBE_SUPPORT != '*' and calling_probe not in plugin_class.PROBE_SUPPORT:
+                raise RuntimeError(
+                    '{} is not among supported probes for plugin {}: {}'
+                    .format(calling_probe, plugin_name, plugin_class.PROBE_SUPPORT),
+                )
+            plugins.append(plugin_class(plugin_args))
         except ImportError as e:
             error = RuntimeError(
-                'Could not import {import_line}: {e}'.format(
-                    import_line=import_line,
-                    e=e,
-                ),
+                'Could not import {}: {}'
+                .format(plugin_packages, e),
             )
         except StopIteration as e:
             error = RuntimeError(
-                'Could not find plugin class in module {import_line}: {e}'.format(
-                    import_line=import_line,
-                    e=e,
-                ),
+                'Could not find plugin class in module {}: {}'
+                .format(plugin_packages, e),
             )
         except Exception as e:
             error = e
