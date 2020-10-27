@@ -42,6 +42,7 @@ username associated with the process.
   - Local bind address `laddr`
   - Listening port `port`
   - Network protocol `protocol` (e.g. tcp)
+  - Configurable to also periodically provide snapshots of all listening processes
 - Optional plugin system for enriching events in userland
   - Included `sourceipmap` plugin for mapping source address
   - Included `loginuidmap` plugin for adding loginuid info to process tree
@@ -72,10 +73,13 @@ best way to get a full view of the requisite state of the system for
 pidtree-bcc to work.
 
 ## Probes
-Pidtree-bcc implements a module probe system which allows multiple eBPF programs
-to be compiled and run in parallel. Probe loading is handled by the top-level keys
+Pidtree-bcc implements a modular probe system which allows multiple eBPF programs
+to be compiled and run in parallel. Probe loading is handled via the top-level keys
 in the configuration (see [`example_config.yml`](example_config.yml)).
+
 Currently, this repository implements the `tcp_connect` and `net_listen` probes.
+It is possible to extend this system with external packages via the `--extra-probe-path`
+command line parameter.
 
 ## Usage
 > CAUTION! The Makefile calls 'docker run' with `--priveleged`,
@@ -143,7 +147,7 @@ tcp_connect:
   filters:
     - subnet_name: 10
       network: 10.0.0.0
-      network_mask : 255.0.0.0
+      network_mask: 255.0.0.0
       description: "all RFC 1918 10/8"
       except_ports: [80]
 ```
@@ -155,10 +159,11 @@ In addition, you can add a global config for filtering out all traffic except th
 using the option `includeports`.
 
 ## Plugins
-Plugin configuration is populated using the `plugins` key at the top level of the configuration:
+Plugin configuration is populated using the `plugins` key at the top level of the probe configuration:
 
 ```yaml
-...
+probe_x:
+  ...
   plugins:
     somepluginname:
       enabled: <True/False> #True by default
@@ -178,6 +183,9 @@ The `unload_on_init_exception` boolean allows you to save pidtree-bcc
 from module misconfiguration for any given plugin configuration dict by
 simply setting it to `True`. Exceptions will be printed to stderr and
 the plugin will not be loaded.
+
+It is possible to extend this system by loading plugins from external
+packages via the `--extra-plugin-path` command line parameter.
 
 ### Sourceipmap
 This plugin adds in a key-value pair to the connection metadata
@@ -207,7 +215,9 @@ running `itests/gen-ip-mapping.sh FILENAME INTERVAL` which will populate
 `FILENAME` with a map of ips to docker container names ever `INTERVAL`
 seconds.
 
-If you then volume mount the *directory* that this file is in (the contents of the file will not update if you bind mount it in directly) to a location like `/maps`, you can then use a configuration like:
+If you then volume mount the *directory* that this file is in (the contents
+of the file will not update if you bind mount it in directly) to a location
+like `/maps`, you can then use a configuration like:
 
 ```yaml
 ...
@@ -230,5 +240,15 @@ tree nodes. The info will be stored in the `loginuid` and `loginname` fields.
   plugins:
     loginuidmap:
       enabled: True
-      top_level: [True|False]
+      top_level: <True/False>
 ```
+
+## Development caveats
+* Plugins must define explicitly the probes they support via the `PROBE_SUPPORT` class
+  variable. It is possible to specify the wildcard `*` to state that a plugin is
+  compatible with all probes, but that is to be used with care to avoid runtime issues.
+* Probes support the concept of "sidecar" threads. Due to the limitations of Python's
+  threading implementation, these should only implement lightweight tasks in order to
+  avoid "stealing" performance from the main probe process.
+* Most of the code is self-documenting, so if something is not clear, try to look in the
+  docstrings.
