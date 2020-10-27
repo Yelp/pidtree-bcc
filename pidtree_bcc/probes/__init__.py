@@ -40,9 +40,9 @@ class BPFProbe:
         """
         self.output_queue = output_queue
         self.validate_config(probe_config)
-        self.plugins = load_plugins(probe_config.get('plugins', {}))
         module_src = inspect.getsourcefile(type(self))
         self.probe_name = os.path.basename(module_src).split('.')[0]
+        self.plugins = load_plugins(probe_config.get('plugins', {}), self.probe_name)
         if not hasattr(self, 'BPF_TEXT'):
             with open(re.sub(r'\.py$', '.j2', module_src)) as f:
                 self.BPF_TEXT = f.read()
