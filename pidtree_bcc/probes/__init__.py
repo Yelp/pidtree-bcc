@@ -39,6 +39,7 @@ class BPFProbe:
                                   variable containing default templating variables.
         """
         self.output_queue = output_queue
+        self.validate_config(probe_config)
         self.plugins = load_plugins(probe_config.get('plugins', {}))
         module_src = inspect.getsourcefile(type(self))
         self.probe_name = os.path.basename(module_src).split('.')[0]
@@ -88,3 +89,11 @@ class BPFProbe:
         :param Any event: BPF event data
         """
         raise NotImplementedError
+
+    def validate_config(self, config: dict):
+        """ Overridable method to implement config validation.
+        Should raise exceptions on errors.
+
+        :param dict config: probe configuration
+        """
+        pass

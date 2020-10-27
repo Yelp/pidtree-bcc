@@ -33,6 +33,7 @@ class NetListenProbe(BPFProbe):
         'excludeports': [],
         'snapshot_periodicity': False,
     }
+    SUPPORTED_PROTOCOLS = ('udp', 'tcp')
 
     def __init__(self, output_queue: SimpleQueue, config: dict = {}):
         super().__init__(output_queue, config)
@@ -56,6 +57,15 @@ class NetListenProbe(BPFProbe):
                 self._snapshot_worker,
                 (config['snapshot_periodicity'],),
             ))
+
+    def validate_config(self, config: dict):
+        """ Checks if config values are valid """
+        for proto in config.get('protocols', []):
+            if proto not in self.SUPPORTED_PROTOCOLS:
+                raise RuntimeError(
+                    '{} is not among supported protocols {}'
+                    .format(proto, self.SUPPORTED_PROTOCOLS),
+                )
 
     def enrich_event(self, event: Any) -> dict:
         """ Parses network "listen event" and adds process tree data
