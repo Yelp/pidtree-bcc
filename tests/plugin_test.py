@@ -46,7 +46,7 @@ def test_plugins_exception_with_unload(caplog):
     )
     assert len(plugins) == 1
     assert isinstance(plugins[0], Identityplugin)
-    assert 'Could not import pidtree_bcc.plugins.please_dont_make_a_plugin_called_this' in caplog.text
+    assert 'Could not import [\'pidtree_bcc.plugins.please_dont_make_a_plugin_called_this\']' in caplog.text
 
 
 def test_plugins_load_incompatible():
