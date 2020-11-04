@@ -16,6 +16,7 @@ TIMEOUT=$(( SPIN_UP_TIME + 5 ))
 TEST_CASES=(
   "tcp_connect:create_connect_event:nc -w 1 127.1.33.7 $TEST_CONNECT_PORT"
   "net_listen:create_listen_event:nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_LISTEN_PORT"
+  "udp_session:create_udp_event:nc -w 1 -u 127.1.33.7 $TEST_CONNECT_PORT"
 )
 
 function is_port_used {
@@ -40,6 +41,16 @@ function create_listen_event {
   echo "Creating test listener"
   sleep 1
   nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_LISTEN_PORT
+}
+
+function create_udp_event {
+  echo "Creating test UDP listener"
+  nc -u -w $TEST_LISTEN_TIMEOUT -l -p $TEST_CONNECT_PORT & > /dev/null
+  listener_pid=$!
+  sleep 1
+  echo "Making test UDP connection"
+  echo "Hello World!" | nc -w 1 -u 127.1.33.7 $TEST_CONNECT_PORT
+  wait $listener_pid
 }
 
 function cleanup {

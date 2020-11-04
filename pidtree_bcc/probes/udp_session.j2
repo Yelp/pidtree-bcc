@@ -1,0 +1,90 @@
+{%- import 'utils.j2' as utils -%}
+#include <net/sock.h>
+#include <bcc/proto.h>
+
+#define SESSION_START 1
+#define SESSION_CONTINUE 2
+#define SESSION_END 3
+
+{{ utils.net_filter_masks(filters, ip_to_int) }}
+
+struct udp_socket_tuple {
+    u32 pid;
+    u64 sock_pointer;
+};
+
+struct udp_session_event {
+    u8  type;
+    u32 pid;
+    u64 sock_pointer;
+    u32 daddr;
+    u16 dport;
+};
+
+BPF_PERF_OUTPUT(events);
+BPF_HASH(tracing, struct udp_socket_tuple, u8);
+
+{{ utils.get_proto_func() }}
+
+// We probe only the entrypoint as looking at return codes doesn't have much value
+// since UDP does not do any checks for successfull communications. The only errors
+// which may arise from this function would be due to the kernel running out of memory,
+// and you have bigger problems than precisely tracing UDP connections at that point.
+int kprobe__udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg, size_t size)
+{
+    if(sk->__sk_common.skc_family != AF_INET) return 0;
+
+    // Destination info will either be embedded in the socket if `connect`
+    // was called or specified in the message
+    struct sockaddr_in* sin = msg->msg_name;
+    u32 daddr = sin->sin_addr.s_addr ? sin->sin_addr.s_addr : sk->sk_daddr;
+    u16 dport = sin->sin_port ? sin->sin_port : sk->sk_dport;
+
+    {{ utils.net_filter_if_excluded(filters) | indent(4) }} {
+        return 0;
+    }
+
+    // Check if we are already tracing this session
+    u32 pid = bpf_get_current_pid_tgid();
+    struct udp_socket_tuple sock_tuple = {};
+    sock_tuple.pid = pid;
+    sock_tuple.sock_pointer = (u64) sk;
+    u8 trace_flag = tracing.lookup(&sock_tuple) != 0 ? SESSION_CONTINUE : SESSION_START;
+
+    struct udp_session_event session = {};
+    session.pid = pid;
+    session.type = trace_flag;
+    session.sock_pointer = sock_tuple.sock_pointer;
+    bpf_probe_read(&session.daddr, sizeof(u32), &daddr);
+    bpf_probe_read(&session.dport, sizeof(u16), &dport);
+    session.dport = ntohs(session.dport);
+    events.perf_submit(ctx, &session, sizeof(session));
+    if(trace_flag == SESSION_START) {
+        // We don't care about the actual value in the map
+        // any u8 var would be fine
+        tracing.update(&sock_tuple, &trace_flag);
+    }
+
+    return 0;
+}
+
+// Again, we don't care about the `close` call being successfull, we treat
+// the invocation as the end of the session regardless
+int kprobe__inet_release(struct pt_regs *ctx, struct socket *sock) {
+    u8 protocol = get_socket_protocol(sock->sk);
+    if(protocol != IPPROTO_UDP) return 0;
+
+    u32 pid = bpf_get_current_pid_tgid();
+    struct udp_socket_tuple sock_tuple = {};
+    sock_tuple.pid = pid;
+    sock_tuple.sock_pointer = (u64) sock->sk;
+    if(tracing.lookup(&sock_tuple) != 0) {
+        struct udp_session_event session = {};
+        session.pid = pid;
+        session.type = SESSION_END;
+        session.sock_pointer = sock_tuple.sock_pointer;
+        events.perf_submit(ctx, &session, sizeof(session));
+        tracing.delete(&sock_tuple);
+    }
+    return 0;
+}

@@ -1,42 +1,46 @@
 ---
+_net_filters: &net_filters
+  - subnet_name: 0_0_0_0__2
+    network: 0.0.0.0
+    network_mask: 192.0.0.0
+    description: "Non-loopback subnet section"
+  - subnet_name: 64_0_0_0__3
+    network: 64.0.0.0
+    network_mask: 224.0.0.0
+    description: "Non-loopback subnet section"
+  - subnet_name: 96_0_0_0__4
+    network: 96.0.0.0
+    network_mask: 240.0.0.0
+    description: "Non-loopback subnet section"
+  - subnet_name: 112_0_0_0__5
+    network: 112.0.0.0
+    network_mask: 248.0.0.0
+    description: "Non-loopback subnet section"
+  - subnet_name: 120_0_0_0__6
+    network: 120.0.0.0
+    network_mask: 252.0.0.0
+    description: "Non-loopback subnet section"
+  - subnet_name: 124_0_0_0__7
+    network: 124.0.0.0
+    network_mask: 254.0.0.0
+    description: "Non-loopback subnet section"
+  - subnet_name: 126_0_0_0__8
+    network: 126.0.0.0
+    network_mask: 255.0.0.0
+    description: "Non-loopback subnet section"
+  - subnet_name: 128_0_0_0__1
+    network: 128.0.0.0
+    network_mask: 128.0.0.0
+    description: "Non-loopback subnet section"
+  - subnet_name: 127_0_0_0__16
+    network: 127.0.0.0
+    network_mask: 255.255.0.0
+    description: "127.0/16 to get rid of the noise"
+
 tcp_connect:
-  filters:
-    - subnet_name: 0_0_0_0__2
-      network: 0.0.0.0
-      network_mask: 192.0.0.0
-      description: "Non-loopback subnet section"
-    - subnet_name: 64_0_0_0__3
-      network: 64.0.0.0
-      network_mask: 224.0.0.0
-      description: "Non-loopback subnet section"
-    - subnet_name: 96_0_0_0__4
-      network: 96.0.0.0
-      network_mask: 240.0.0.0
-      description: "Non-loopback subnet section"
-    - subnet_name: 112_0_0_0__5
-      network: 112.0.0.0
-      network_mask: 248.0.0.0
-      description: "Non-loopback subnet section"
-    - subnet_name: 120_0_0_0__6
-      network: 120.0.0.0
-      network_mask: 252.0.0.0
-      description: "Non-loopback subnet section"
-    - subnet_name: 124_0_0_0__7
-      network: 124.0.0.0
-      network_mask: 254.0.0.0
-      description: "Non-loopback subnet section"
-    - subnet_name: 126_0_0_0__8
-      network: 126.0.0.0
-      network_mask: 255.0.0.0
-      description: "Non-loopback subnet section"
-    - subnet_name: 128_0_0_0__1
-      network: 128.0.0.0
-      network_mask: 128.0.0.0
-      description: "Non-loopback subnet section"
-    - subnet_name: 127_0_0_0__16
-      network: 127.0.0.0
-      network_mask: 255.255.0.0
-      description: "127.0/16 to get rid of the noise"
+  filters: *net_filters
 net_listen:
   excludeports:
     - 31337
+udp_session:
+  filters: *net_filters

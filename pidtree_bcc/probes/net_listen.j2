@@ -1,3 +1,4 @@
+{%- import 'utils.j2' as utils -%}
 #include <net/sock.h>
 #include <bcc/proto.h>
 
@@ -11,20 +12,7 @@ struct listen_bind_t {
     u8  protocol;
 };
 
-static u8 get_socket_protocol(struct sock *sk)
-{
-    // I'd love to be the one to have figured this out, I'm not
-    // https://github.com/iovisor/bcc/blob/v0.16.0/tools/tcpaccept.py#L115
-    u8 protocol;
-    int gso_max_segs_offset = offsetof(struct sock, sk_gso_max_segs);
-    int sk_lingertime_offset = offsetof(struct sock, sk_lingertime);
-    if (sk_lingertime_offset - gso_max_segs_offset == 4) {
-        protocol = *(u8 *)((u64)&sk->sk_gso_max_segs - 3);
-    } else {
-        protocol = *(u8 *)((u64)&sk->sk_wmem_queued - 3);
-    }
-    return protocol;
-}
+{{ utils.get_proto_func() }}
 
 static void net_listen_event(struct pt_regs *ctx)
 {
