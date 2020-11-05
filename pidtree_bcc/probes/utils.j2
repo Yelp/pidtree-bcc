@@ -1,0 +1,57 @@
+{% macro get_proto_func() -%}
+static u8 get_socket_protocol(struct sock *sk)
+{
+    // I'd love to be the one to have figured this out, I'm not
+    // https://github.com/iovisor/bcc/blob/v0.16.0/tools/tcpaccept.py#L115
+    u8 protocol;
+    int gso_max_segs_offset = offsetof(struct sock, sk_gso_max_segs);
+    int sk_lingertime_offset = offsetof(struct sock, sk_lingertime);
+    if (sk_lingertime_offset - gso_max_segs_offset == 4) {
+        protocol = *(u8 *)((u64)&sk->sk_gso_max_segs - 3);
+    } else {
+        protocol = *(u8 *)((u64)&sk->sk_wmem_queued - 3);
+    }
+    return protocol;
+}
+{%- endmacro %}
+
+{% macro net_filter_masks(filters, ip_to_int) -%}
+// IPs and masks are given in integer notation with their dotted notation in the comment
+{% for filter in filters %}
+// {{ filter.get("description", filter["subnet_name"]) }}
+#define subnet_{{ filter["subnet_name"] }} {{ ip_to_int(filter["network"]) }} // {{ filter["network"] }}
+#define subnet_{{ filter["subnet_name"] }}_mask {{ ip_to_int(filter["network_mask"]) }} // {{ filter["network_mask"] }}
+{% endfor %}
+{%- endmacro %}
+
+{% macro net_filter_if_excluded(filters, daddr_var='daddr', dport_var='dport') -%}
+//
+// For each filter, drop the packet iff
+// - a filter's subnet matches AND
+// - the port is not one of the filter's excepted ports AND
+// - the port is one of the filter's included ports, if they exist
+//
+if (0 // for easier templating
+{% for filter in filters -%}
+    || (
+        (
+            subnet_{{ filter["subnet_name"] }}
+            & subnet_{{ filter["subnet_name"] }}_mask
+        ) == ({{ daddr_var }} & subnet_{{ filter["subnet_name"] }}_mask)
+        {%- if filter.get('except_ports') %}
+        && (1  // for easier templating
+            {% for port in filter['except_ports'] -%}
+            && ntohs({{ port }}) != {{ dport_var }}
+            {%- endfor %}
+        )
+        {%- endif %}
+        {%- if filter.get('include_ports') %}
+        && (0  // for easier templating
+            {% for port in filter['include_ports'] -%}
+            || ntohs({{ port }}) == {{ dport_var }}
+            {%- endfor %}
+        )
+        {%- endif %}
+    )
+{% endfor %})
+{%- endmacro %}

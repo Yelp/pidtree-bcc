@@ -9,7 +9,8 @@ from typing import Any
 from typing import Mapping
 
 from bcc import BPF
-from jinja2 import Template
+from jinja2 import Environment
+from jinja2 import FileSystemLoader
 
 from pidtree_bcc.plugins import load_plugins
 from pidtree_bcc.utils import find_subclass
@@ -64,7 +65,8 @@ class BPFProbe:
             template_config = {k: template_config[k] for k in self.TEMPLATE_VARS}
         else:
             template_config.pop('plugins', None)
-        self.expanded_bpf_text = Template(self.BPF_TEXT).render(**template_config)
+        jinja_env = Environment(loader=FileSystemLoader(os.path.dirname(module_src)))
+        self.expanded_bpf_text = jinja_env.from_string(self.BPF_TEXT).render(**template_config)
 
     def _process_events(self, cpu: Any, data: Any, size: Any, from_bpf: bool = True):
         """ BPF event callback
@@ -76,6 +78,8 @@ class BPFProbe:
         """
         event = self.bpf['events'].event(data) if from_bpf else data
         event = self.enrich_event(event)
+        if not event:
+            return
         event['timestamp'] = datetime.utcnow().isoformat() + 'Z'
         event['probe'] = self.probe_name
         for event_plugin in self.plugins:

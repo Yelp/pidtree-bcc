@@ -43,6 +43,8 @@ username associated with the process.
   - Listening port `port`
   - Network protocol `protocol` (e.g. tcp)
   - Configurable to also periodically provide snapshots of all listening processes
+- Best effort tracking of UDP sessions with configurability and output
+  similar to the ones of TCP outbound connections.
 - Optional plugin system for enriching events in userland
   - Included `sourceipmap` plugin for mapping source address
   - Included `loginuidmap` plugin for adding loginuid info to process tree
@@ -77,7 +79,7 @@ Pidtree-bcc implements a modular probe system which allows multiple eBPF program
 to be compiled and run in parallel. Probe loading is handled via the top-level keys
 in the configuration (see [`example_config.yml`](example_config.yml)).
 
-Currently, this repository implements the `tcp_connect` and `net_listen` probes.
+Currently, this repository implements the `tcp_connect`, `net_listen` and `udp_session` probes.
 It is possible to extend this system with external packages via the `--extra-probe-path`
 command line parameter.
 
