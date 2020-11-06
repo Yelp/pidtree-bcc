@@ -1,7 +1,15 @@
 ARG     OS_RELEASE
 FROM    ubuntu:${OS_RELEASE}
 
-RUN     apt-get update && apt-get -y install \
+# Focal doesn't have dh-virtualenv in default repos
+# so we install it from the maintainer's PPA
+RUN     if grep focal /etc/lsb-release; then \
+            apt-get update \
+            && DEBIAN_FRONTEND=noninteractive apt-get -y install software-properties-common \
+            && add-apt-repository ppa:jyrki-pulliainen/dh-virtualenv; \
+        fi
+
+RUN     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install \
             python3 \
             python3-pip \
             dh-virtualenv \

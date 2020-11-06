@@ -1,9 +1,9 @@
 ARG     OS_RELEASE
 FROM    ubuntu:${OS_RELEASE} as builder
-ARG     BCC_VERSION=0.12.0
+ARG     BCC_VERSION=0.17.0
 
 RUN     apt-get update \
-        && apt-get -y install pbuilder aptitude git \
+        && DEBIAN_FRONTEND=noninteractive apt-get -y install pbuilder aptitude git \
         && apt-get clean
 
 # Clone source code
