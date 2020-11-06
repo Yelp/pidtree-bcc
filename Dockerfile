@@ -1,9 +1,9 @@
 ARG     OS_RELEASE=bionic
 FROM    ubuntu:${OS_RELEASE} as builder
-ARG     BCC_VERSION=0.12.0
+ARG     BCC_VERSION=0.17.0
 
 RUN     apt-get update \
-        && apt-get -y install pbuilder aptitude git \
+        && DEBIAN_FRONTEND=noninteractive apt-get -y install pbuilder aptitude git \
         && apt-get clean
 
 # Clone source code
@@ -21,7 +21,7 @@ RUN     /usr/lib/pbuilder/pbuilder-satisfydepends && ./scripts/build-deb.sh rele
 FROM    ubuntu:${OS_RELEASE}
 
 RUN     apt-get update \
-        && apt-get -y install \
+        && DEBIAN_FRONTEND=noninteractive apt-get -y install \
             python3 \
             python3-pip \
         && apt-get clean

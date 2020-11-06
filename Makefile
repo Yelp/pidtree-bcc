@@ -7,6 +7,7 @@ FIFO = $(CURDIR)/pidtree-bcc.fifo
 EXTRA_DOCKER_ARGS ?=
 DOCKER_ARGS = $(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 HOST_OS_RELEASE = $(or $(shell cat /etc/lsb-release 2>/dev/null | grep -Po '(?<=CODENAME=)(.+)'), bionic)
+SUPPORTED_UBUNTU_RELEASES = xenial bionic focal
 
 default: venv
 
@@ -51,12 +52,11 @@ test: clean-cache
 	tox
 
 test-all: clean-cache
+	set -e
 	make test
 	make itest
-	make package_ubuntu_xenial
-	make package_ubuntu_bionic
-	make itest_ubuntu_xenial
-	make itest_ubuntu_bionic
+	$(foreach release, $(SUPPORTED_UBUNTU_RELEASES), make package_ubuntu_$(release);)
+	$(foreach release, $(SUPPORTED_UBUNTU_RELEASES), make itest_ubuntu_$(release);)
 
 package_%:
 	make -C packaging package_$*

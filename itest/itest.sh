@@ -76,10 +76,6 @@ function wait_for_tame_output {
 }
 
 function main {
-  if [[ $# -ne 1 && "$1" != "docker" && "$1" != "ubuntu_xenial" && "$1" != "ubuntu_bionic" ]]; then
-    echo "ERROR: '$@' is not a supported argument (see 'itest/itest.sh' for options)" >&2
-    exit 1
-  fi
   trap cleanup EXIT
   is_port_used $TEST_CONNECT_PORT
   is_port_used $TEST_LISTEN_PORT
@@ -103,7 +99,7 @@ function main {
         -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
         -v $TOPLEVEL/$OUTPUT_NAME:/work/outfile \
         pidtree-itest -c /work/config.yml -f /work/outfile
-  elif [[ "$1" = "ubuntu_xenial" || "$1" = "ubuntu_bionic" ]]; then
+  elif [[ "$1" =~ ^ubuntu_[a-z]+$ ]]; then
     if [ -f /etc/lsb-release ]; then
       source /etc/lsb-release
     else
@@ -121,6 +117,9 @@ function main {
         -v $TOPLEVEL/itest/dist/$1/:/work/dist \
         -v $TOPLEVEL/itest/deb_package_itest.sh:/work/deb_package_itest.sh \
         pidtree-itest-$1 /work/deb_package_itest.sh run -c /work/config.yml -f /work/outfile
+  else
+    echo "ERROR: '$@' is not a supported argument (see 'itest/itest.sh' for options)" >&2
+    exit 1
   fi
   echo "Sleeping $SPIN_UP_TIME seconds for pidtree-bcc to start"
   sleep $SPIN_UP_TIME
