@@ -4,6 +4,7 @@ import os
 import signal
 import sys
 import time
+from functools import partial
 from multiprocessing import Process
 from multiprocessing import SimpleQueue
 from threading import Thread
@@ -66,13 +67,19 @@ def parse_config(config_file: str) -> dict:
         return yaml.safe_load(f)
 
 
-def termination_handler(signum: int, frame: Any):
+def termination_handler(probe_workers: List[Process], main_pid: int, signum: int, frame: Any):
     """ Generic termination signal handler
 
+    :param List[Process] probe_workers: list of probe processes
+    :param int main_pid: PID of the main process
     :param int signum: signal integer code
     :param Any frame: signal stack frame
     """
     logging.warning('Caught termination signal, exiting')
+    if os.getpid() == main_pid:
+        logging.info('Shutting off all probes')
+        for worker in probe_workers:
+            worker.terminate()
     sys.exit(EXIT_CODE)
 
 
@@ -86,17 +93,17 @@ def probe_watchdog(probe_workers: List[Process]):
         time.sleep(PROBE_CHECK_PERIOD)
         if not all(worker.is_alive() for worker in probe_workers):
             EXIT_CODE = 1
-            logging.error('Probe terminated unexpectedly, quitting')
-            for worker in probe_workers:
-                worker.terminate()
-            os.kill(os.getpid(), signal.SIGINT)
+            logging.error('Probe terminated unexpectedly, exiting')
+            os.kill(os.getpid(), signal.SIGTERM)
             break
 
 
 def main(args: argparse.Namespace):
+    probe_workers = []
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
-    signal.signal(signal.SIGINT, termination_handler)
-    signal.signal(signal.SIGTERM, termination_handler)
+    curried_handler = partial(termination_handler, probe_workers, os.getpid())
+    signal.signal(signal.SIGINT, curried_handler)
+    signal.signal(signal.SIGTERM, curried_handler)
     config = parse_config(args.config)
     out = smart_open(args.output_file, mode='w')
     output_queue = SimpleQueue()
@@ -113,7 +120,6 @@ def main(args: argparse.Namespace):
             print(probe.expanded_bpf_text)
             print('\n')
         sys.exit(0)
-    probe_workers = []
     for probe in probes.values():
         probe_workers.append(Process(target=probe.start_polling))
         probe_workers[-1].start()
