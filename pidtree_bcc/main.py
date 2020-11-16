@@ -99,6 +99,7 @@ def probe_watchdog(probe_workers: List[Process]):
 
 
 def main(args: argparse.Namespace):
+    global EXIT_CODE
     probe_workers = []
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     curried_handler = partial(termination_handler, probe_workers, os.getpid())
@@ -131,12 +132,11 @@ def main(args: argparse.Namespace):
             out.flush()
     except Exception as e:
         # Terminate everything if something goes wrong
+        EXIT_CODE = 1
         logging.error('Encountered unexpected error: {}'.format(e))
         for worker in probe_workers:
             worker.terminate()
-        sys.exit(1)
-    finally:
-        out.close()
+    sys.exit(EXIT_CODE)
 
 
 if __name__ == '__main__':
