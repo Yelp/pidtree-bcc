@@ -158,7 +158,10 @@ Would mean filter out all traffic from 10.0.0.0/8 except for that on port 80. If
 to include_ports, then it would filter out only traffic to 10.0.0.0/8 on port 80.
 
 In addition, you can add a global config for filtering out all traffic except those for specific ports,
-using the option `includeports`.
+using the option `includeports`. There also exists the specular global probe config `excludeports` which
+allows to specify a list of ports or port ranges to exclude from event capturing. These parameters are
+avilable for all currently implement probes (`tcp_connect`, `net_listen` and `udp_session`) and are mutually
+exclusive. If both are speficied for a single probe, `includeports` will have precendence.
 
 ## Plugins
 Plugin configuration is populated using the `plugins` key at the top level of the probe configuration:
