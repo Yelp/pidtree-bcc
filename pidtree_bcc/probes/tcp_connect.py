@@ -13,6 +13,7 @@ class TCPConnectProbe(BPFProbe):
         'ip_to_int': ip_to_int,
         'filters': [],
         'includeports': [],
+        'excludeports': [],
     }
 
     def enrich_event(self, event: Any) -> dict:

@@ -55,3 +55,23 @@ if (0 // for easier templating
     )
 {% endfor %})
 {%- endmacro %}
+
+{% macro include_exclude_ports(includeports, excludeports, port_var='dport') -%}
+{% if includeports %}
+if (1
+{%- for port in includeports %}
+    && {{ port }} != {{ port_var }}
+{% endfor %})
+{% else -%}
+if (0
+{%- for port in excludeports %}
+    {% set port = port | string -%}
+    {% if '-' in port -%}
+        {%- set from_port, to_port = port.split('-') -%}
+        || ({{ port_var }} >= {{ from_port }} && {{ port_var }} <= {{ to_port }})
+    {%- else -%}
+        || {{ port_var }} == {{ port }}
+    {%- endif %}
+{% endfor %})
+{% endif -%}
+{%- endmacro %}

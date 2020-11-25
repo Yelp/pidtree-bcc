@@ -30,25 +30,23 @@ static void net_listen_event(struct pt_regs *ctx)
     bpf_probe_read(&laddr, sizeof(u32), &sk->__sk_common.skc_rcv_saddr);
     bpf_probe_read(&port, sizeof(u16), &sk->__sk_common.skc_num);
 
-    {% if excludeaddress or excludeports -%}
+    {% if excludeaddress -%}
     if (0
-    {% for addr in excludeaddress -%}
+    {%- for addr in excludeaddress %}
         || laddr == {{ ip_to_int(addr) }}
     {% endfor -%}
-    {% for port in excludeports -%}
-        {%- set port = port | string -%}
-        {% if '-' in port -%}
-            {%- set from_port, to_port = port.split('-') -%}
-            || (port >= {{ from_port }} && port <= {{ to_port }})
-        {% else -%}
-            || port == {{ port }}
-        {% endif -%}
-    {%- endfor -%}
     ) {
         currsock.delete(&pid);
         return;
     }
     {% endif -%}
+
+    {% if includeports or excludeports -%}
+    {{ utils.include_exclude_ports(includeports, excludeports, 'port') | indent(4) }} {
+        currsock.delete(&pid);
+        return;
+    }
+    {%- endif %}
 
     struct listen_bind_t listen = {};
     listen.pid = pid;

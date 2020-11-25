@@ -31,6 +31,7 @@ class NetListenProbe(BPFProbe):
         'protocols': ['tcp'],
         'excludeaddress': [],
         'excludeports': [],
+        'includeports': [],
         'snapshot_periodicity': False,
     }
     SUPPORTED_PROTOCOLS = ('udp', 'tcp')
@@ -46,12 +47,17 @@ class NetListenProbe(BPFProbe):
         self.log_tcp = 'tcp' in config['protocols']
         self.log_udp = 'udp' in config['protocols']
         self.excludeaddrs = set(config['excludeaddress'])
-        self.excludeports = set(
-            chain.from_iterable(
-                range(*port_range_mapper(p)) if '-' in p else [int(p)]
-                for p in map(str, config['excludeports'])
-            ),
-        )
+        if config['includeports']:
+            includeports = set(map(int, config['includeports']))
+            self.port_filter = lambda port: port in includeports
+        else:
+            excludeports = set(
+                chain.from_iterable(
+                    range(*port_range_mapper(p)) if '-' in p else [int(p)]
+                    for p in map(str, config['excludeports'])
+                ),
+            )
+            self.port_filter = lambda port: port not in excludeports
         if config['snapshot_periodicity']:
             self.SIDECARS.append((
                 self._snapshot_worker,
@@ -110,7 +116,7 @@ class NetListenProbe(BPFProbe):
                 if (
                     protocol
                     and conn.laddr.ip not in self.excludeaddrs
-                    and conn.laddr.port not in self.excludeports
+                    and self.port_filter(conn.laddr.port)
                 ):
                     event = NetListenWrapper(
                         conn.pid,

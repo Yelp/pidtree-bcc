@@ -21,6 +21,8 @@ class UDPSessionProbe(BPFProbe):
     CONFIG_DEFAULTS = {
         'ip_to_int': ip_to_int,
         'filters': [],
+        'includeports': [],
+        'excludeports': [],
     }
     SESSION_MAX_DURATION_DEFAULT = 120
     SESSION_START = 1

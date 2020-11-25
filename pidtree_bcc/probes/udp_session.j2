@@ -44,6 +44,13 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg
         return 0;
     }
 
+    {% if includeports or excludeports -%}
+    {{ utils.include_exclude_ports(includeports, excludeports, 'ntohs(dport)') | indent(4) }} {
+        currsock.delete(&pid);
+        return 0;
+    }
+    {%- endif %}
+
     // Check if we are already tracing this session
     u32 pid = bpf_get_current_pid_tgid();
     struct udp_socket_tuple sock_tuple = {};
