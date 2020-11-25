@@ -13,13 +13,13 @@ prevent excessive logging for things like loopback and RFC1918 `connect`s
 
 ## Why
 Security monitoring purposes. ML based products like Amazon's GuardDuty will
-tell you when hosts in your infrastructure have made "anomolous" outbound
+tell you when hosts in your infrastructure have made "anomalous" outbound
 requests, but often these are as-intended but not known about by the team
 investigating the network traffic. Because of the transient nature of processes,
 often any useful context is lost by the time investigation can occur.
 
 `pidtree-bcc` is a supplementary intrusion detection system which
-utilzes the eBPF kernel subsystem to notify a userland daemon of all
+utilizes the eBPF kernel subsystem to notify a userland daemon of all
 events so that they can be traced. It enables engineers to quickly
 identify familiar process trees (for instance, a familiar service name
 which corresponds to domain names associated with the destination IP
@@ -160,8 +160,8 @@ to include_ports, then it would filter out only traffic to 10.0.0.0/8 on port 80
 In addition, you can add a global config for filtering out all traffic except those for specific ports,
 using the option `includeports`. There also exists the specular global probe config `excludeports` which
 allows to specify a list of ports or port ranges to exclude from event capturing. These parameters are
-avilable for all currently implement probes (`tcp_connect`, `net_listen` and `udp_session`) and are mutually
-exclusive. If both are speficied for a single probe, `includeports` will have precendence.
+available for all currently implement probes (`tcp_connect`, `net_listen` and `udp_session`) and are mutually
+exclusive. If both are specified for a single probe, `includeports` will have precedence.
 
 ## Plugins
 Plugin configuration is populated using the `plugins` key at the top level of the probe configuration:
