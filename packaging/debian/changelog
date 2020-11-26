@@ -1,3 +1,9 @@
+pidtree-bcc (1.4.1) unstable; urgency=medium
+
+  * Fix port inclusion/exclusion bug in UDP session probe
+
+ -- Matteo Piano <mpiano@yelp.com>  Thu, 26 Nov 2020 05:48:19 -0800
+
 pidtree-bcc (1.4.0) unstable; urgency=medium
 
   * Normalize "excludeports" and "includeports" settings for all probes
