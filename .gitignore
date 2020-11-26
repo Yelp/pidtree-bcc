@@ -17,4 +17,5 @@ testhosts
 **/debian-binary
 packaging/dist
 itest/dist
+itest/config.yml
 .coverage
