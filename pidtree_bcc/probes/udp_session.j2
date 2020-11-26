@@ -46,7 +46,6 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg
 
     {% if includeports or excludeports -%}
     {{ utils.include_exclude_ports(includeports, excludeports, 'ntohs(dport)') | indent(4) }} {
-        currsock.delete(&pid);
         return 0;
     }
     {%- endif %}

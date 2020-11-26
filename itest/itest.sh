@@ -1,9 +1,9 @@
 #!/bin/bash -eE
 
 export OUTPUT_NAME=itest/itest_output_$$
-export TEST_CONNECT_PORT=${TEST_CONNECT_PORT:-31337}
-export TEST_LISTEN_PORT=${TEST_LISTEN_PORT:-41337}
-export TEST_LISTEN_TIMEOUT=${TEST_LISTEN_TIMEOUT:-5}
+export TEST_PORT_1=${TEST_CONNECT_PORT:-31337}
+export TEST_PORT_2=${TEST_LISTEN_PORT:-41337}
+export TEST_LISTEN_TIMEOUT=${TEST_LISTEN_TIMEOUT:-2}
 export DEBUG=${DEBUG:-false}
 export CONTAINER_NAME=pidtree-itest_$1_$$
 export TOPLEVEL=$(git rev-parse --show-toplevel)
@@ -12,11 +12,13 @@ export TOPLEVEL=$(git rev-parse --show-toplevel)
 SPIN_UP_TIME=5
 # We also need to timout the test if the test event *isn't* caught
 TIMEOUT=$(( SPIN_UP_TIME + 5 ))
-# Format: test_name:test_event_generator:test_flag_to_match
+# Format: test_name:test_event_generator:test_flag_to_match:exit_code
 TEST_CASES=(
-  "tcp_connect:create_connect_event:nc -w 1 127.1.33.7 $TEST_CONNECT_PORT"
-  "net_listen:create_listen_event:nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_LISTEN_PORT"
-  "udp_session:create_udp_event:nc -w 1 -u 127.1.33.7 $TEST_CONNECT_PORT"
+  "tcp_connect:create_connect_event $TEST_PORT_1:nc -w 1 127.1.33.7 $TEST_PORT_1:0"
+  "net_listen:create_listen_event $TEST_PORT_2:nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_PORT_2:0"
+  "udp_session:create_udp_event $TEST_PORT_1:nc -w 1 -u 127.1.33.7 $TEST_PORT_1:0"
+  "tcp_connect_exclude:create_connect_event $TEST_PORT_2:nc -w 1 127.1.33.7 $TEST_PORT_2:124"
+  "udp_session_exclude:create_udp_event $TEST_PORT_2:nc -w 1 -u 127.1.33.7 $TEST_PORT_2:124"
 )
 
 function is_port_used {
@@ -29,27 +31,27 @@ function is_port_used {
 
 function create_connect_event {
   echo "Creating test listener"
-  nc -w $TEST_LISTEN_TIMEOUT -l -p $TEST_CONNECT_PORT &
+  nc -w $TEST_LISTEN_TIMEOUT -l -p $1 &
   listener_pid=$!
   sleep 1
   echo "Making test connection"
-  nc -w 1 127.1.33.7 $TEST_CONNECT_PORT
+  nc -w 1 127.1.33.7 $1
   wait $listener_pid
 }
 
 function create_listen_event {
   echo "Creating test listener"
   sleep 1
-  nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_LISTEN_PORT
+  nc -w $TEST_LISTEN_TIMEOUT -lnp $1 2> /dev/null
 }
 
 function create_udp_event {
   echo "Creating test UDP listener"
-  nc -u -w $TEST_LISTEN_TIMEOUT -l -p $TEST_CONNECT_PORT & > /dev/null
+  nc -u -w $TEST_LISTEN_TIMEOUT -l -p $1 & > /dev/null
   listener_pid=$!
   sleep 1
   echo "Making test UDP connection"
-  echo "Hello World!" | nc -w 1 -u 127.1.33.7 $TEST_CONNECT_PORT
+  echo "Hello World!" | nc -w 1 -u 127.1.33.7 $1
   wait $listener_pid
 }
 
@@ -59,7 +61,7 @@ function cleanup {
   echo "CLEANUP: Killing container"
   docker kill $CONTAINER_NAME
   echo "CLEANUP: Removing FIFO"
-  rm -f $OUTPUT_NAME
+  rm -f $OUTPUT_NAME $TOPLEVEL/itest/config.yml
 }
 
 function wait_for_tame_output {
@@ -77,8 +79,9 @@ function wait_for_tame_output {
 
 function main {
   trap cleanup EXIT
-  is_port_used $TEST_CONNECT_PORT
-  is_port_used $TEST_LISTEN_PORT
+  is_port_used $TEST_PORT_1
+  is_port_used $TEST_PORT_2
+  sed "s/<port1>/$TEST_PORT_1/g; s/<port2>/$TEST_PORT_2/g" $TOPLEVEL/itest/itest_config.yml > $TOPLEVEL/itest/config.yml
   if [ "$DEBUG" = "true" ]; then set -x; fi
   touch $OUTPUT_NAME
   if [[ "$1" = "docker" ]]; then
@@ -96,7 +99,7 @@ function main {
     echo "Launching itest-container $CONTAINER_NAME"
     docker run --name $CONTAINER_NAME -d\
         --rm --privileged --cap-add sys_admin --pid host \
-        -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
+        -v $TOPLEVEL/itest/config.yml:/work/config.yml \
         -v $TOPLEVEL/$OUTPUT_NAME:/work/outfile \
         pidtree-itest -c /work/config.yml -f /work/outfile
   elif [[ "$1" =~ ^ubuntu_[a-z]+$ ]]; then
@@ -112,7 +115,7 @@ function main {
         --build-arg OS_RELEASE=${1/ubuntu_/} --build-arg HOSTRELEASE=$DISTRIB_CODENAME itest/
     docker run --name $CONTAINER_NAME -d \
         --rm --privileged --cap-add sys_admin --pid host \
-        -v $TOPLEVEL/itest/example_config.yml:/work/config.yml \
+        -v $TOPLEVEL/itest/config.yml:/work/config.yml \
         -v $TOPLEVEL/$OUTPUT_NAME:/work/outfile \
         -v $TOPLEVEL/itest/dist/$1/:/work/dist \
         -v $TOPLEVEL/itest/deb_package_itest.sh:/work/deb_package_itest.sh \
@@ -130,21 +133,27 @@ function main {
     test_name=$(echo "$test_case" | cut -d: -f1)
     test_event=$(echo "$test_case" | cut -d: -f2)
     test_check=$(echo "$test_case" | cut -d: -f3)
+    test_exit=$(echo "$test_case" | cut -d: -f4)
+    echo
+    echo "############ $test_name ############"
     timeout $TIMEOUT bash -c "wait_for_tame_output '$test_check'" &
     WAIT_FOR_OUTPUT_PID=$!
     $test_event &
     WAIT_FOR_MOCK_EVENT=$!
     set +e
     wait $WAIT_FOR_OUTPUT_PID
-    if [ $? -ne 0 ]; then
-      echo "$test_name: FAILED! (timeout)"
+    if [ "$?" -ne "$test_exit" ]; then
+      echo "$test_name: FAILED!"
       EXIT_CODE=1
     else
       echo "$test_name: SUCCESS!"
       EXIT_CODE=0
     fi
+    head -c $(($(echo -n $test_name | wc -c) + 26)) < /dev/zero | tr '\0' '#'
+    echo
     wait $WAIT_FOR_MOCK_EVENT
   done
+  echo
   exit $EXIT_CODE
 }
 
