@@ -13,7 +13,7 @@ from pidtree_bcc.utils import ip_to_int
 from pidtree_bcc.utils import never_crash
 
 
-SessionEventWrapper = namedtuple('SessionEndEvent', ('type', 'pid', 'sock_pointer'))
+SessionEventWrapper = namedtuple('SessionEndEvent', ('type', 'sock_pointer'))
 
 
 class UDPSessionProbe(BPFProbe):
@@ -50,7 +50,7 @@ class UDPSessionProbe(BPFProbe):
     def _enrich_event_impl(self, event: Any) -> Union[dict, None]:
         """ Actual `enrich_event` implementation, separated for cleaner thread locking code """
         now = time.monotonic()
-        sock_key = (event.pid, event.sock_pointer)
+        sock_key = event.sock_pointer
         if event.type == self.SESSION_START:
             try:
                 error = ''
@@ -99,10 +99,10 @@ class UDPSessionProbe(BPFProbe):
             expired = []
             now = time.monotonic()
             with self.thread_lock:
-                for sock_key, session_data in self.session_tracking.items():
+                for sock_pointer, session_data in self.session_tracking.items():
                     if now - session_data['last_update'] > session_max_duration:
                         session_data['error'] = 'session_max_duration_exceeded'
-                        expired.append(sock_key)
-            for sock_key in expired:
-                end_event = SessionEventWrapper(self.SESSION_END, *sock_key)
+                        expired.append(sock_pointer)
+            for sock_pointer in expired:
+                end_event = SessionEventWrapper(self.SESSION_END, sock_pointer)
                 self._process_events(None, end_event, None, False)
