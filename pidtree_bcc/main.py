@@ -24,14 +24,19 @@ PROBE_CHECK_PERIOD = 60  # seconds
 
 def parse_args() -> argparse.Namespace:
     """ Parses command line arguments """
-    parser = argparse.ArgumentParser()
+    program_name = 'pidtree-bcc'
+    parser = argparse.ArgumentParser(
+        program_name,
+        description='eBPF tool for logging process ancestry of network events',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument(
         '-c', '--config', type=str,
-        help='yaml file containing subnet safelist information',
+        help='YAML file containing probe configurations',
     )
     parser.add_argument(
         '-p', '--print-and-quit', action='store_true', default=False,
-        help="don't run, just print the eBPF program to be compiled and quit",
+        help='Just print the eBPF program(s) to be compiled and quit',
     )
     parser.add_argument(
         '-f', '--output_file', type=str, default='-',
@@ -54,7 +59,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         '-v', '--version', action='version',
-        version='pidtree-bcc %s' % __version__,
+        version='{} {}'.format(program_name, __version__),
     )
     args = parser.parse_args()
     if args.config is not None and not os.path.exists(args.config):
