@@ -65,27 +65,28 @@ class UDPSessionProbe(BPFProbe):
                 'error': error,
                 'last_update': now,
             }
-        elif event.type == self.SESSION_CONTINUE:
-            dest_key = (event.daddr, event.dport)
-            session_data = self.session_tracking[sock_key]
-            if dest_key not in session_data['destinations']:
-                session_data['destinations'][dest_key] = [now, 1]
+        elif sock_key in self.session_tracking:
+            if event.type == self.SESSION_CONTINUE:
+                dest_key = (event.daddr, event.dport)
+                session_data = self.session_tracking[sock_key]
+                if dest_key not in session_data['destinations']:
+                    session_data['destinations'][dest_key] = [now, 1]
+                else:
+                    session_data['destinations'][dest_key][1] += 1
+                session_data['last_update'] = now
             else:
-                session_data['destinations'][dest_key][1] += 1
-            session_data['last_update'] = now
-        else:
-            session_data = self.session_tracking.pop(sock_key)
-            session_data.pop('last_update')
-            session_data['destinations'] = [
-                {
-                    'daddr': int_to_ip(addr_port[0]),
-                    'port': addr_port[1],
-                    'duration': now - begin_count[0],
-                    'msg_count': begin_count[1],
-                }
-                for addr_port, begin_count in session_data['destinations'].items()
-            ]
-            return session_data
+                session_data = self.session_tracking.pop(sock_key)
+                session_data.pop('last_update')
+                session_data['destinations'] = [
+                    {
+                        'daddr': int_to_ip(addr_port[0]),
+                        'port': addr_port[1],
+                        'duration': now - begin_count[0],
+                        'msg_count': begin_count[1],
+                    }
+                    for addr_port, begin_count in session_data['destinations'].items()
+                ]
+                return session_data
 
     @never_crash
     def _session_expiration_worker(self, session_max_duration: int):
