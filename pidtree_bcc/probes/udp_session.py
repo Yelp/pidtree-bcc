@@ -29,8 +29,8 @@ class UDPSessionProbe(BPFProbe):
     SESSION_CONTINUE = 2
     SESSION_END = 3
 
-    def __init__(self, output_queue: SimpleQueue, config: dict = {}):
-        super().__init__(output_queue, config)
+    def __init__(self, output_queue: SimpleQueue, config: dict = {}, *args, **kwargs):
+        super().__init__(output_queue, config, *args, **kwargs)
         self.session_tracking = {}
         self.thread_lock = Lock()
         self.SIDECARS.append((

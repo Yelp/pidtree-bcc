@@ -33,7 +33,7 @@ class BPFProbe:
     # To be populated by `load_probes`
     EXTRA_PLUGIN_PATH = None
 
-    def __init__(self, output_queue: SimpleQueue, probe_config: dict = {}):
+    def __init__(self, output_queue: SimpleQueue, probe_config: dict = {}, lost_event_telemetry: int = -1):
         """ Constructor
 
         :param Queue output_queue: queue for event output
@@ -43,6 +43,8 @@ class BPFProbe:
                                   class variable defining a list of config fields.
                                   It is possible for child class to define a CONFIG_DEFAULTS class
                                   variable containing default templating variables.
+        :param int lost_event_telemetry: every how many messages emit the number of lost messages.
+                                         Set to <= 0 to disable.
         """
         self.output_queue = output_queue
         self.validate_config(probe_config)
@@ -67,6 +69,9 @@ class BPFProbe:
             template_config.pop('plugins', None)
         jinja_env = Environment(loader=FileSystemLoader(os.path.dirname(module_src)))
         self.expanded_bpf_text = jinja_env.from_string(self.BPF_TEXT).render(**template_config)
+        self.lost_event_telemetry = lost_event_telemetry
+        self.lost_event_timer = lost_event_telemetry
+        self.lost_event_count = 0
 
     def _process_events(self, cpu: Any, data: Any, size: Any, from_bpf: bool = True):
         """ BPF event callback
@@ -80,20 +85,50 @@ class BPFProbe:
         event = self.enrich_event(event)
         if not event:
             return
-        event['timestamp'] = datetime.utcnow().isoformat() + 'Z'
-        event['probe'] = self.probe_name
+        self._add_event_metadata(event)
         for event_plugin in self.plugins:
             event = event_plugin.process(event)
         self.output_queue.put(json.dumps(event))
+
+    def _add_event_metadata(self, event: dict):
+        """ Adds probe name and current ISO-format timestamp to event dictionary (in place)
+
+        :param dict event: event dictionary
+        """
+        event['timestamp'] = datetime.utcnow().isoformat() + 'Z'
+        event['probe'] = self.probe_name
+
+    def _lost_event_callback(self, lost_count: int):
+        """ Method to be used as callback to count lost events
+
+        :param int lost_count: number of events lost
+        """
+        self.lost_event_count += lost_count
+
+    def _poll_and_check_lost(self):
+        """ Simple wrapper method which outputs lost event telemetry while polling """
+        self.bpf.perf_buffer_poll()
+        self.lost_event_timer -= 1
+        if self.lost_event_timer == 0:
+            self.lost_event_timer = self.lost_event_telemetry
+            event = {'type': 'lost_event_telemetry', 'count': self.lost_event_count}
+            self._add_event_metadata(event)
+            self.output_queue.put(json.dumps(event))
 
     def start_polling(self):
         """ Start infinite loop polling BPF events """
         for func, args in self.SIDECARS:
             Thread(target=func, args=args, daemon=True).start()
         self.bpf = BPF(text=self.expanded_bpf_text)
-        self.bpf['events'].open_perf_buffer(self._process_events)
+        if self.lost_event_telemetry > 0:
+            extra_args = {'lost_cb': self._lost_event_callback}
+            poll_func = self._poll_and_check_lost
+        else:
+            extra_args = {}
+            poll_func = self.bpf.perf_buffer_poll
+        self.bpf['events'].open_perf_buffer(self._process_events, **extra_args)
         while True:
-            self.bpf.perf_buffer_poll()
+            poll_func()
 
     def enrich_event(self, event: Any) -> dict:
         """ Transform raw BPF event data into dictionary,
@@ -117,6 +152,7 @@ def load_probes(
     output_queue: SimpleQueue,
     extra_probe_path: str = None,
     extra_plugin_path: str = None,
+    lost_event_telemetry: int = -1,
 ) -> Mapping[str, BPFProbe]:
     """ Find and load probe classes
 
@@ -124,6 +160,7 @@ def load_probes(
     :param Queue output_queue: queue for event output
     :param str extra_probe_path: (optional) additional package path where to look for probes
     :param str extra_probe_path: (optional) additional package path where to look for plugins
+    :param int lost_event_telemetry: (optional) every how many messages emit the number of lost messages.
     :return: dictionary mapping probe name to its instance
     """
     BPFProbe.EXTRA_PLUGIN_PATH = extra_plugin_path
@@ -132,7 +169,7 @@ def load_probes(
         probe_name: find_subclass(
             ['{}.{}'.format(p, probe_name) for p in packages],
             BPFProbe,
-        )(output_queue, probe_config)
+        )(output_queue, probe_config, lost_event_telemetry)
         for probe_name, probe_config in config.items()
         if not probe_name.startswith('_')
     }
