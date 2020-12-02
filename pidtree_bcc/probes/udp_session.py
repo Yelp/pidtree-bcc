@@ -13,7 +13,7 @@ from pidtree_bcc.utils import ip_to_int
 from pidtree_bcc.utils import never_crash
 
 
-SessionEventWrapper = namedtuple('SessionEndEvent', ('type', 'pid', 'sock_pointer'))
+SessionEventWrapper = namedtuple('SessionEndEvent', ('type', 'sock_pointer'))
 
 
 class UDPSessionProbe(BPFProbe):
@@ -50,7 +50,7 @@ class UDPSessionProbe(BPFProbe):
     def _enrich_event_impl(self, event: Any) -> Union[dict, None]:
         """ Actual `enrich_event` implementation, separated for cleaner thread locking code """
         now = time.monotonic()
-        sock_key = (event.pid, event.sock_pointer)
+        sock_key = event.sock_pointer
         if event.type == self.SESSION_START:
             try:
                 error = ''
@@ -65,27 +65,28 @@ class UDPSessionProbe(BPFProbe):
                 'error': error,
                 'last_update': now,
             }
-        elif event.type == self.SESSION_CONTINUE:
-            dest_key = (event.daddr, event.dport)
-            session_data = self.session_tracking[sock_key]
-            if dest_key not in session_data['destinations']:
-                session_data['destinations'][dest_key] = [now, 1]
+        elif sock_key in self.session_tracking:
+            if event.type == self.SESSION_CONTINUE:
+                dest_key = (event.daddr, event.dport)
+                session_data = self.session_tracking[sock_key]
+                if dest_key not in session_data['destinations']:
+                    session_data['destinations'][dest_key] = [now, 1]
+                else:
+                    session_data['destinations'][dest_key][1] += 1
+                session_data['last_update'] = now
             else:
-                session_data['destinations'][dest_key][1] += 1
-            session_data['last_update'] = now
-        else:
-            session_data = self.session_tracking.pop(sock_key)
-            session_data.pop('last_update')
-            session_data['destinations'] = [
-                {
-                    'daddr': int_to_ip(addr_port[0]),
-                    'port': addr_port[1],
-                    'duration': now - begin_count[0],
-                    'msg_count': begin_count[1],
-                }
-                for addr_port, begin_count in session_data['destinations'].items()
-            ]
-            return session_data
+                session_data = self.session_tracking.pop(sock_key)
+                session_data.pop('last_update')
+                session_data['destinations'] = [
+                    {
+                        'daddr': int_to_ip(addr_port[0]),
+                        'port': addr_port[1],
+                        'duration': now - begin_count[0],
+                        'msg_count': begin_count[1],
+                    }
+                    for addr_port, begin_count in session_data['destinations'].items()
+                ]
+                return session_data
 
     @never_crash
     def _session_expiration_worker(self, session_max_duration: int):
@@ -99,10 +100,10 @@ class UDPSessionProbe(BPFProbe):
             expired = []
             now = time.monotonic()
             with self.thread_lock:
-                for sock_key, session_data in self.session_tracking.items():
+                for sock_pointer, session_data in self.session_tracking.items():
                     if now - session_data['last_update'] > session_max_duration:
                         session_data['error'] = 'session_max_duration_exceeded'
-                        expired.append(sock_key)
-            for sock_key in expired:
-                end_event = SessionEventWrapper(self.SESSION_END, *sock_key)
+                        expired.append(sock_pointer)
+            for sock_pointer in expired:
+                end_event = SessionEventWrapper(self.SESSION_END, sock_pointer)
                 self._process_events(None, end_event, None, False)
