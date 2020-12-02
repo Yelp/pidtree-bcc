@@ -38,6 +38,13 @@ def parse_args() -> argparse.Namespace:
         help='File to output to (default is STDOUT, denoted by -)',
     )
     parser.add_argument(
+        '--lost-event-telemetry', type=int, default=-1, metavar='NEVENTS',
+        help=(
+            'If set and greater than 0, output telemetry every NEVENTS about the number '
+            'of events dropped due to the kernel -> userland communication channel filling up'
+        ),
+    )
+    parser.add_argument(
         '--extra-probe-path', type=str,
         help='Extra dot-notation package path where to look for probes to load',
     )
@@ -113,6 +120,7 @@ def main(args: argparse.Namespace):
         output_queue,
         args.extra_probe_path,
         args.extra_plugin_path,
+        args.lost_event_telemetry,
     )
     logging.info('Loaded probes: {}'.format(', '.join(probes)))
     if args.print_and_quit:

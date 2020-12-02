@@ -36,8 +36,8 @@ class NetListenProbe(BPFProbe):
     }
     SUPPORTED_PROTOCOLS = ('udp', 'tcp')
 
-    def __init__(self, output_queue: SimpleQueue, config: dict = {}):
-        super().__init__(output_queue, config)
+    def __init__(self, output_queue: SimpleQueue, config: dict = {}, *args, **kwargs):
+        super().__init__(output_queue, config, *args, **kwargs)
 
         def port_range_mapper(port_range: str):
             from_p, to_p = map(int, port_range.split('-'))
