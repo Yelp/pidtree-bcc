@@ -1,3 +1,10 @@
+pidtree-bcc (1.5.0) unstable; urgency=medium
+
+  * Simplify UDP session tracing event key (to allow tracking sockets shared across processes)
+  * Add option to emit lost event telemetry
+
+ -- Matteo Piano <mpiano@yelp.com>  Wed, 02 Dec 2020 06:58:40 -0800
+
 pidtree-bcc (1.4.1) unstable; urgency=medium
 
   * Fix port inclusion/exclusion bug in UDP session probe
