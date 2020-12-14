@@ -2,6 +2,8 @@
 #include <net/sock.h>
 #include <bcc/proto.h>
 
+{{ utils.net_filter_masks(filters, ip_to_int) }}
+
 BPF_HASH(currsock, u32, struct sock*);
 BPF_PERF_OUTPUT(events);
 
@@ -30,12 +32,8 @@ static void net_listen_event(struct pt_regs *ctx)
     bpf_probe_read(&laddr, sizeof(u32), &sk->__sk_common.skc_rcv_saddr);
     bpf_probe_read(&port, sizeof(u16), &sk->__sk_common.skc_num);
 
-    {% if excludeaddress -%}
-    if (0
-    {%- for addr in excludeaddress %}
-        || laddr == {{ ip_to_int(addr) }}
-    {% endfor -%}
-    ) {
+    {% if filters -%}
+    {{ utils.net_filter_if_excluded(filters, 'laddr', 'ntohs(port)') | indent(4) }} {
         currsock.delete(&pid);
         return;
     }

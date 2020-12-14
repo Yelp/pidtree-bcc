@@ -9,6 +9,7 @@ from typing import Any
 
 import psutil
 
+from pidtree_bcc.filtering import NetFilter
 from pidtree_bcc.probes import BPFProbe
 from pidtree_bcc.utils import crawl_process_tree
 from pidtree_bcc.utils import int_to_ip
@@ -29,7 +30,7 @@ class NetListenProbe(BPFProbe):
     CONFIG_DEFAULTS = {
         'ip_to_int': ip_to_int,
         'protocols': ['tcp'],
-        'excludeaddress': [],
+        'filters': [],
         'excludeports': [],
         'includeports': [],
         'snapshot_periodicity': False,
@@ -46,7 +47,7 @@ class NetListenProbe(BPFProbe):
         config = {**self.CONFIG_DEFAULTS, **config}
         self.log_tcp = 'tcp' in config['protocols']
         self.log_udp = 'udp' in config['protocols']
-        self.excludeaddrs = set(config['excludeaddress'])
+        self.filtering = NetFilter(config['filters'])
         if config['includeports']:
             includeports = set(map(int, config['includeports']))
             self.port_filter = lambda port: port in includeports
@@ -58,7 +59,7 @@ class NetListenProbe(BPFProbe):
                 ),
             )
             self.port_filter = lambda port: port not in excludeports
-        if config['snapshot_periodicity']:
+        if config['snapshot_periodicity'] and config['snapshot_periodicity'] > 0:
             self.SIDECARS.append((
                 self._snapshot_worker,
                 (config['snapshot_periodicity'],),
@@ -113,14 +114,15 @@ class NetListenProbe(BPFProbe):
                     protocol = socket.IPPROTO_UDP
                 else:
                     protocol = None
+                ip_addr = ip_to_int(conn.laddr.ip)
                 if (
                     protocol
-                    and conn.laddr.ip not in self.excludeaddrs
+                    and not self.filtering.is_filtered(ip_addr, conn.laddr.port)
                     and self.port_filter(conn.laddr.port)
                 ):
                     event = NetListenWrapper(
                         conn.pid,
-                        ip_to_int(conn.laddr.ip),
+                        ip_addr,
                         conn.laddr.port,
                         protocol,
                     )

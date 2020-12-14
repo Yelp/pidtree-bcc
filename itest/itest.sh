@@ -15,10 +15,11 @@ TIMEOUT=$(( SPIN_UP_TIME + 5 ))
 # Format: test_name:test_event_generator:test_flag_to_match:exit_code
 TEST_CASES=(
   "tcp_connect:create_connect_event $TEST_PORT_1:nc -w 1 127.1.33.7 $TEST_PORT_1:0"
-  "net_listen:create_listen_event $TEST_PORT_2:nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_PORT_2:0"
+  "net_listen:create_listen_event $TEST_PORT_2 127.1.33.7:nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_PORT_2:0"
   "udp_session:create_udp_event $TEST_PORT_1:nc -w 1 -u 127.1.33.7 $TEST_PORT_1:0"
   "tcp_connect_exclude:create_connect_event $TEST_PORT_2:nc -w 1 127.1.33.7 $TEST_PORT_2:124"
   "udp_session_exclude:create_udp_event $TEST_PORT_2:nc -w 1 -u 127.1.33.7 $TEST_PORT_2:124"
+  "net_listen_filter:create_listen_event $TEST_PORT_2 127.0.0.1:nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_PORT_2:124"
 )
 
 function is_port_used {
@@ -42,7 +43,7 @@ function create_connect_event {
 function create_listen_event {
   echo "Creating test listener"
   sleep 1
-  nc -w $TEST_LISTEN_TIMEOUT -lnp $1 2> /dev/null
+  nc -w $TEST_LISTEN_TIMEOUT -lnp $1 -s $2 2> /dev/null
 }
 
 function create_udp_event {

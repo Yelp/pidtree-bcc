@@ -42,6 +42,7 @@ tcp_connect:
   excludeports:
     - <port2>
 net_listen:
+  filters: *net_filters
   excludeports:
     - <port1>
 udp_session:
