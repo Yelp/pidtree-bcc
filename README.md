@@ -65,7 +65,7 @@ username associated with the process.
 
 ## Dependencies
 See the installation instructions for [bcc](https://github.com/iovisor/bcc).
-It is required for the `python3-bcc` package and its depedencies to be installed.
+It is required for the `python3-bcc` package and its dependencies to be installed.
 
 Most notably, you need a kernel with eBPF enabled (4.4 onward) and the
 Linux headers for your running kernel version installed. For a
@@ -77,7 +77,7 @@ pidtree-bcc to work.
 ## Probes
 Pidtree-bcc implements a modular probe system which allows multiple eBPF programs
 to be compiled and run in parallel. Probe loading is handled via the top-level keys
-in the configuration (see [`example_config.yml`](example_config.yml)).
+in the configuration (see [`example_config.yml`](example_config.yml) for inline documentation).
 
 Currently, this repository implements the `tcp_connect`, `net_listen` and `udp_session` probes.
 It is possible to extend this system with external packages via the `--extra-probe-path`
@@ -141,7 +141,7 @@ or 172.16/12 ranges because of the subnet filters I've included in the
 list of addresses you might want to filter, so you can use the example
 configuration to write your own.
 
-Additionally, you can make the filters apply only to certain ports, using except_ports and include_ports.
+Additionally, you can make the filters apply only to certain ports, using `except_ports` and `include_ports`.
 For example:
 
 ```yaml
