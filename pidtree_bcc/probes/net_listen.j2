@@ -46,6 +46,13 @@ static void net_listen_event(struct pt_regs *ctx)
     }
     {%- endif %}
 
+    {% if net_namespace -%}
+    if (sk->__sk_common.skc_net.net->ns.inum != {{ net_namespace }}) {
+        currsock.delete(&pid);
+        return;
+    }
+    {%- endif %}
+
     struct listen_bind_t listen = {};
     listen.pid = pid;
     listen.port = port;

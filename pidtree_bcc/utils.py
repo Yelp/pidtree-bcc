@@ -2,6 +2,7 @@ import functools
 import importlib
 import inspect
 import logging
+import os
 import socket
 import struct
 import sys
@@ -111,3 +112,19 @@ def never_crash(func: Callable) -> Callable:
             except Exception as e:
                 logging.error('Error executing {}: {}'.format(func.__name__, e))
     return wrapper
+
+
+def get_network_namespace(pid: int = None) -> int:
+    """ Get network namespace identifier
+
+    :param int pid: process ID (if not provided selects calling process)
+    :return: network namespace inum
+    """
+    if not pid:
+        pid = 'self'
+    try:
+        ns_link = str(os.readlink('/proc/{}/ns/net'.format(pid)))
+        # format will be "net:[<inum>]"
+        return int(ns_link.strip()[5:-1])
+    except Exception:
+        return None
