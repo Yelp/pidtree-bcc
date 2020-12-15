@@ -12,6 +12,7 @@ import psutil
 from pidtree_bcc.filtering import NetFilter
 from pidtree_bcc.probes import BPFProbe
 from pidtree_bcc.utils import crawl_process_tree
+from pidtree_bcc.utils import get_network_namespace
 from pidtree_bcc.utils import int_to_ip
 from pidtree_bcc.utils import ip_to_int
 from pidtree_bcc.utils import never_crash
@@ -34,17 +35,21 @@ class NetListenProbe(BPFProbe):
         'excludeports': [],
         'includeports': [],
         'snapshot_periodicity': False,
+        'same_namespace_only': False,
     }
     SUPPORTED_PROTOCOLS = ('udp', 'tcp')
 
     def __init__(self, output_queue: SimpleQueue, config: dict = {}, *args, **kwargs):
+        config = {**self.CONFIG_DEFAULTS, **config}
+        config['net_namespace'] = get_network_namespace() if config['same_namespace_only'] else None
+        self.net_namespace = config['net_namespace']
+
         super().__init__(output_queue, config, *args, **kwargs)
 
         def port_range_mapper(port_range: str):
             from_p, to_p = map(int, port_range.split('-'))
             return max(0, from_p), min(65535, to_p + 1)
 
-        config = {**self.CONFIG_DEFAULTS, **config}
         self.log_tcp = 'tcp' in config['protocols']
         self.log_udp = 'udp' in config['protocols']
         self.filtering = NetFilter(config['filters'])
@@ -95,6 +100,17 @@ class NetListenProbe(BPFProbe):
             'error': error,
         }
 
+    def _filter_net_namespace(self, pid: int) -> bool:
+        """ Check if network namespace for process is filtered
+
+        :param int pid: process ID
+        :return: True if filtered, False if not
+        """
+        if not self.net_namespace:
+            return False
+        net_ns = get_network_namespace(pid)
+        return net_ns and net_ns != self.net_namespace
+
     @never_crash
     def _snapshot_worker(self, periodicity: int):
         """ Handler function for snapshot thread.
@@ -119,6 +135,7 @@ class NetListenProbe(BPFProbe):
                     protocol
                     and not self.filtering.is_filtered(ip_addr, conn.laddr.port)
                     and self.port_filter(conn.laddr.port)
+                    and not self._filter_net_namespace(conn.pid)
                 ):
                     event = NetListenWrapper(
                         conn.pid,

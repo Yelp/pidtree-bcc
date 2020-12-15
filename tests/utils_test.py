@@ -1,5 +1,7 @@
 import os
 import sys
+from unittest.mock import call
+from unittest.mock import patch
 
 from pidtree_bcc import utils
 
@@ -27,3 +29,16 @@ def test_ip_to_int():
 def test_int_to_ip():
     assert utils.int_to_ip(16777343) == '127.0.0.1'
     assert utils.int_to_ip(168430090) == '10.10.10.10'
+
+
+@patch('pidtree_bcc.utils.os')
+def test_get_network_namespace(mock_os):
+    mock_os.readlink.return_value = 'net:[456]'
+    assert utils.get_network_namespace() == 456
+    assert utils.get_network_namespace(123) == 456
+    mock_os.readlink.assert_has_calls([
+        call('/proc/self/ns/net'),
+        call('/proc/123/ns/net'),
+    ])
+    mock_os.readlink.side_effect = Exception
+    assert utils.get_network_namespace() is None

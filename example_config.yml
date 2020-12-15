@@ -1,9 +1,11 @@
 ---
 _net_filters: &net_filters
-  - subnet_name: 10
-    network: 10.0.0.0
-    network_mask: 255.0.0.0
-    description: "all RFC 1918 10/8"
+  - subnet_name: 10                       # name for the filter (must be unique)
+    network: 10.0.0.0                     # network address in dot-notation
+    network_mask: 255.0.0.0               # network mask in dot-notation
+    description: "all RFC 1918 10/8"      # just a human readable description
+    # except_ports: [443]                 # do not filter traffic for this set of ports
+    # include_ports: [80]                 # only filters traffic for this set of ports
   - subnet_name: 17216
     network: 172.16.0.0
     network_mask: 255.240.0.0
@@ -17,6 +19,14 @@ _net_filters: &net_filters
     network_mask: 255.0.0.0
     description: "all 127/8 loopback"
 
+
+# Some configuration fields supported by all probes:
+#   filters: list of network filters (see above for schema); they act on the destination
+#            address for tcp_connect and udp_session, local listening address for net_listen
+#   excludeports: list of ports to be filtered out (cannot be used with includeports)
+#   includeports: list of ports for which events will be logged (filters out all the others) (cannot be used with excludeports)
+#   plugins: map of plugins to enable for the probe (check README for more details)
+
 udp_session:
   filters: *net_filters
 tcp_connect:
@@ -28,8 +38,9 @@ tcp_connect:
         - '/etc/hosts'
       attribute_key: "source_host"
 net_listen:
-  snapshot_periodicity: 43200
-  protocols: [tcp]
+  snapshot_periodicity: 43200     # how often the probe should output a full list of the listening processes (seconds, off by default)
+  protocols: [tcp]                # for which protocols events get logged (choices: tcp, udp)
+  same_namespace_only: False      # filter out events for network namespaces different from the one of the pidtree-bcc process (off by default)
   filters:
     - subnet_name: 127
       network: 127.0.0.0
