@@ -76,6 +76,6 @@ clean: clean-cache
 release:
 	"$(EDITOR)" $(VERSION_FILE)
 	make -C packaging changelog VERSION_FILE=$(VERSION_FILE)
-	version=$(shell grep __version__ $(VERSION_FILE) | grep -Po "(?<=')([^']+)")
+	version=$$(grep __version__ $(VERSION_FILE) | grep -Po "(?<=')([^']+)")
 	git commit -am "Release $$version"
 	git tag v$$version
