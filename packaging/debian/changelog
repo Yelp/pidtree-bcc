@@ -1,3 +1,9 @@
+pidtree-bcc (1.7.1) unstable; urgency=medium
+
+  * Option to filter out randomly bound ports in net_listen
+
+ -- Matteo Piano <mpiano@yelp.com>  Thu, 17 Dec 2020 04:15:52 -0800
+
 pidtree-bcc (1.7.0) unstable; urgency=medium
 
   * Optionally filter network listens by namespace
