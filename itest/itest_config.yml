@@ -43,6 +43,7 @@ tcp_connect:
     - <port2>
 net_listen:
   filters: *net_filters
+  exclude_random_bind: True
   excludeports:
     - <port1>
 udp_session:

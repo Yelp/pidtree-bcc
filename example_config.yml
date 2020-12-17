@@ -41,6 +41,7 @@ net_listen:
   snapshot_periodicity: 43200     # how often the probe should output a full list of the listening processes (seconds, off by default)
   protocols: [tcp]                # for which protocols events get logged (choices: tcp, udp)
   same_namespace_only: False      # filter out events for network namespaces different from the one of the pidtree-bcc process (off by default)
+  exclude_random_bind: False      # filter out bind events using port 0 (affects UDP events only, off by default)
   filters:
     - subnet_name: 127
       network: 127.0.0.0
