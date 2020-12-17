@@ -36,6 +36,7 @@ class NetListenProbe(BPFProbe):
         'includeports': [],
         'snapshot_periodicity': False,
         'same_namespace_only': False,
+        'exclude_random_bind': False,
     }
     SUPPORTED_PROTOCOLS = ('udp', 'tcp')
 

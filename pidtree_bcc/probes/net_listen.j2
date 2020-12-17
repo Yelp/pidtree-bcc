@@ -69,6 +69,12 @@ int kprobe__inet_bind(
     const struct sockaddr *addr,
     int addrlen)
 {
+    {% if exclude_random_bind -%}
+    struct sockaddr_in* inet_addr = (struct sockaddr_in*)addr;
+    if (inet_addr->sin_port == 0) {
+        return 0;
+    }
+    {% endif -%}
     struct sock* sk = sock->sk;
     u8 protocol = get_socket_protocol(sk);
     if (sk->__sk_common.skc_family == AF_INET && protocol == IPPROTO_UDP) {
@@ -83,7 +89,7 @@ int kretprobe__inet_bind(struct pt_regs *ctx)
     net_listen_event(ctx);
     return 0;
 }
-{% endif -%}
+{%- endif %}
 
 {% if 'tcp' in protocols -%}
 int kprobe__inet_listen(struct pt_regs *ctx, struct socket *sock, int backlog)
