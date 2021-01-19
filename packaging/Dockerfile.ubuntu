@@ -21,6 +21,15 @@ RUN     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install \
         && apt-get clean
 
 WORKDIR /work
+
+# python3 installs python3.5 on xenial, and with pip 21.0 everything got broken
+# to the point that virtualenvs fail to be created. So we update virtualenv to a
+# new enough version allowing us to pin pip to a old enough version.
+RUN     if grep xenial /etc/lsb-release; then \
+            pip3 install -U 'virtualenv<=20.4.0' 'importlib-metadata<3.0.0' \
+                            'importlib-resources<3.3.0' 'zipp<3.0.0'; \
+        fi
+
 ADD     . /work
 ADD     packaging/debian /work/debian
 
