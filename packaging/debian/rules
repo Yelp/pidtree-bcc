@@ -1,10 +1,16 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
+# latest versions of setuptools are no longer compatible with python3.5,
+# so it must be down-pinned for building on xenial
+ifeq ($(shell (. /etc/os-release && dpkg --compare-versions $$VERSION_ID "lt" "18.04" && echo yes || echo no)), yes)
+	preinstall_arg = --preinstall='setuptools<51.0.0'
+endif
+
 export DH_VIRTUALENV_INSTALL_ROOT = /opt/venvs
 
 %:
 	dh $@ --with python-virtualenv
 
 override_dh_virtualenv:
-	dh_virtualenv --python python3 --use-system-packages --no-test
+	dh_virtualenv --python python3 --use-system-packages --no-test $(preinstall_arg)
