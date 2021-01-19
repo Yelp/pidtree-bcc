@@ -1,3 +1,9 @@
+pidtree-bcc (1.7.2) unstable; urgency=low
+
+  * Fix for package build on Ubuntu Xenial
+
+ -- Matteo Piano <mpiano@yelp.com>  Tue, 19 Jan 2021 04:31:31 -0800
+
 pidtree-bcc (1.7.1) unstable; urgency=medium
 
   * Option to filter out randomly bound ports in net_listen
