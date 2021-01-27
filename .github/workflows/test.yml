@@ -1,0 +1,35 @@
+---
+name: Package tests
+on:
+  - push
+
+env:
+  XENIAL_PY35_PINS: importlib-metadata<3.0.0 setuptools<51.0.0 importlib-resources<3.3.0 zipp<3.0.0
+
+jobs:
+  unit_test:
+    runs-on: ubuntu-16.04
+    strategy:
+      matrix:
+        python-version: [3.5, 3.6, 3.7]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install tox
+        run: sudo pip3 install tox tox-gh-actions $XENIAL_PY35_PINS
+      - name: Test with tox
+        run: tox
+  itests:
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup environment
+        run: |
+          sudo apt-get update && sudo apt-get install -y netcat-traditional
+          sudo update-alternatives --set nc /bin/nc.traditional
+          sudo pip3 install tox $XENIAL_PY35_PINS
+      - name: Run all tests
+        run: sudo make test-all
