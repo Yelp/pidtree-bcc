@@ -9,6 +9,7 @@ from multiprocessing import Process
 from multiprocessing import SimpleQueue
 from threading import Thread
 from typing import Any
+from typing import Callable
 from typing import List
 
 import yaml
@@ -20,6 +21,7 @@ from pidtree_bcc.utils import smart_open
 
 EXIT_CODE = 0
 PROBE_CHECK_PERIOD = 60  # seconds
+HANDLED_SIGNALS = (signal.SIGINT, signal.SIGTERM)
 
 
 def parse_args() -> argparse.Namespace:
@@ -79,20 +81,30 @@ def parse_config(config_file: str) -> dict:
         return yaml.safe_load(f)
 
 
-def termination_handler(probe_workers: List[Process], main_pid: int, signum: int, frame: Any):
+def termination_handler(probe_workers: List[Process], signum: int, frame: Any):
     """ Generic termination signal handler
 
     :param List[Process] probe_workers: list of probe processes
-    :param int main_pid: PID of the main process
     :param int signum: signal integer code
     :param Any frame: signal stack frame
     """
-    logging.warning('Caught termination signal, exiting')
-    if os.getpid() == main_pid:
-        logging.info('Shutting off all probes')
-        for worker in probe_workers:
-            worker.terminate()
+    logging.warning('Caught termination signal, shutting off probes and exiting')
+    for worker in probe_workers:
+        worker.terminate()
     sys.exit(EXIT_CODE)
+
+
+def deregister_signals(func: Callable):
+    """ De-register signal handlers before invoking function
+
+    :param Callable func: function to wrap
+    :return: wrapped function
+    """
+    def helper(*args, **kwargs):
+        for s in HANDLED_SIGNALS:
+            signal.signal(s, signal.SIG_DFL)
+        return func(*args, **kwargs)
+    return helper
 
 
 def probe_watchdog(probe_workers: List[Process]):
@@ -114,9 +126,9 @@ def main(args: argparse.Namespace):
     global EXIT_CODE
     probe_workers = []
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
-    curried_handler = partial(termination_handler, probe_workers, os.getpid())
-    signal.signal(signal.SIGINT, curried_handler)
-    signal.signal(signal.SIGTERM, curried_handler)
+    curried_handler = partial(termination_handler, probe_workers)
+    for s in HANDLED_SIGNALS:
+        signal.signal(s, curried_handler)
     config = parse_config(args.config)
     out = smart_open(args.output_file, mode='w')
     output_queue = SimpleQueue()
@@ -135,7 +147,7 @@ def main(args: argparse.Namespace):
             print('\n')
         sys.exit(0)
     for probe in probes.values():
-        probe_workers.append(Process(target=probe.start_polling))
+        probe_workers.append(Process(target=deregister_signals(probe.start_polling)))
         probe_workers[-1].start()
     watchdog_thread = Thread(target=probe_watchdog, args=(probe_workers,), daemon=True)
     watchdog_thread.start()
