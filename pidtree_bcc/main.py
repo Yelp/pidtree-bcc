@@ -113,7 +113,11 @@ def probe_watchdog(probe_workers: List[Process]):
 def main(args: argparse.Namespace):
     global EXIT_CODE
     probe_workers = []
-    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    logging.basicConfig(
+        stream=sys.stderr,
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+    )
     curried_handler = partial(termination_handler, probe_workers, os.getpid())
     signal.signal(signal.SIGINT, curried_handler)
     signal.signal(signal.SIGTERM, curried_handler)
