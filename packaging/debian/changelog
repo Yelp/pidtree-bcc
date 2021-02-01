@@ -1,3 +1,11 @@
+pidtree-bcc (1.8.0) unstable; urgency=medium
+
+  * Improved system logging format
+  * Monitor output file handle for errors
+  * Better signal handling for sub-processes
+
+ -- Matteo Piano <mpiano@yelp.com>  Mon, 01 Feb 2021 04:33:01 -0800
+
 pidtree-bcc (1.7.2) unstable; urgency=low
 
   * Fix for package build on Ubuntu Xenial
