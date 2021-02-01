@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import select
 import signal
 import sys
 import time
@@ -10,6 +11,7 @@ from multiprocessing import SimpleQueue
 from threading import Thread
 from typing import Any
 from typing import List
+from typing import TextIO
 
 import yaml
 
@@ -19,7 +21,7 @@ from pidtree_bcc.utils import smart_open
 
 
 EXIT_CODE = 0
-PROBE_CHECK_PERIOD = 60  # seconds
+HEALTH_CHECK_PERIOD = 60  # seconds
 
 
 def parse_args() -> argparse.Namespace:
@@ -95,17 +97,22 @@ def termination_handler(probe_workers: List[Process], main_pid: int, signum: int
     sys.exit(EXIT_CODE)
 
 
-def probe_watchdog(probe_workers: List[Process]):
-    """ Check that probe processes are alive
+def health_watchdog(probe_workers: List[Process], output_fh: TextIO):
+    """ Check that probe processes are alive and output file is writable
 
     :param List[Process] probe_workers: list of probe processes
+    :param TextIO output_fh: Output file handle
     """
     global EXIT_CODE
+    fs_poller = select.poll()
+    fs_poller.register(output_fh, select.POLLERR)
     while True:
-        time.sleep(PROBE_CHECK_PERIOD)
-        if not all(worker.is_alive() for worker in probe_workers):
+        time.sleep(HEALTH_CHECK_PERIOD)
+        bad_fds = fs_poller.poll(0)
+        if not all(worker.is_alive() for worker in probe_workers) or bad_fds:
             EXIT_CODE = 1
-            logging.error('Probe terminated unexpectedly, exiting')
+            msg = 'Broken output file' if bad_fds else 'Probe terminated unexpectedly'
+            logging.error('{}, exiting'.format(msg))
             os.kill(os.getpid(), signal.SIGTERM)
             break
 
@@ -137,7 +144,7 @@ def main(args: argparse.Namespace):
     for probe in probes.values():
         probe_workers.append(Process(target=probe.start_polling))
         probe_workers[-1].start()
-    watchdog_thread = Thread(target=probe_watchdog, args=(probe_workers,), daemon=True)
+    watchdog_thread = Thread(target=health_watchdog, args=(probe_workers, out), daemon=True)
     watchdog_thread.start()
     try:
         while True:
