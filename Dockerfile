@@ -1,6 +1,6 @@
 ARG     OS_RELEASE=bionic
 FROM    ubuntu:${OS_RELEASE} as builder
-ARG     BCC_VERSION=0.17.0
+ARG     BCC_VERSION=0.19.0
 
 RUN     apt-get update \
         && DEBIAN_FRONTEND=noninteractive apt-get -y install pbuilder aptitude git \
