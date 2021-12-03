@@ -16,7 +16,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install tox
-        run: sudo pip3 install tox tox-gh-actions
+        run: |
+          sudo pip3 install -r requirements-bootstrap.txt
+          sudo pip3 install tox tox-pip-extensions tox-gh-actions
       - name: Test with tox
         run: tox
   itests:
@@ -27,6 +29,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y netcat-traditional
           sudo update-alternatives --set nc /bin/nc.traditional
-          sudo pip3 install tox
+          sudo pip3 install -r requirements-bootstrap.txt
+          sudo pip3 install tox tox-pip-extensions
       - name: Run all tests
         run: sudo make test-all
