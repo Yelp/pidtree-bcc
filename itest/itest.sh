@@ -9,7 +9,7 @@ export CONTAINER_NAME=pidtree-itest_$1_$$
 export TOPLEVEL=$(git rev-parse --show-toplevel)
 
 # The container takes a while to bootstrap so we have to wait before we emit the test event
-SPIN_UP_TIME=5
+SPIN_UP_TIME=10
 # We also need to timout the test if the test event *isn't* caught
 TIMEOUT=$(( SPIN_UP_TIME + 5 ))
 # Format: test_name:test_event_generator:test_flag_to_match:exit_code
