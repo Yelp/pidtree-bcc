@@ -27,7 +27,7 @@ WORKDIR /work
 # new enough version allowing us to pin pip to a old enough version.
 RUN     if grep xenial /etc/lsb-release; then \
             pip3 install -U 'virtualenv<=20.4.0' 'importlib-metadata<3.0.0' \
-                            'importlib-resources<3.3.0' 'zipp<3.0.0'; \
+                            'importlib-resources<3.3.0' 'zipp<3.0.0' 'filelock<3.3.0'; \
         fi
 
 ADD     . /work
