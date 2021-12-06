@@ -1,0 +1,35 @@
+---
+name: Package tests
+on:
+  - push
+
+jobs:
+  unit_test:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        python-version: [3.5, 3.6, 3.7]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install tox
+        run: |
+          sudo pip3 install -r requirements-bootstrap.txt
+          sudo pip3 install tox tox-pip-extensions tox-gh-actions
+      - name: Test with tox
+        run: tox
+  itests:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup environment
+        run: |
+          sudo apt-get update && sudo apt-get install -y netcat-traditional
+          sudo update-alternatives --set nc /bin/nc.traditional
+          sudo pip3 install -r requirements-bootstrap.txt
+          sudo pip3 install tox tox-pip-extensions
+      - name: Run all tests
+        run: sudo make test-all
