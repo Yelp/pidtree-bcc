@@ -257,3 +257,6 @@ tree nodes. The info will be stored in the `loginuid` and `loginname` fields.
   avoid "stealing" performance from the main probe process.
 * Most of the code is self-documenting, so if something is not clear, try to look in the
   docstrings.
+* It is possible to use private Docker base images for testing by setting the environment
+  variable `DOCKER_BASE_IMAGE_TMPL`. This is expected to contain the substring "OS_RELEASE_PH"
+  which will be replaced by the targeted OS release codenames.

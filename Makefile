@@ -6,6 +6,7 @@ MAKEFLAGS += --warn-undefined-variables
 FIFO = $(CURDIR)/pidtree-bcc.fifo
 EXTRA_DOCKER_ARGS ?=
 DOCKER_ARGS = $(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
+DOCKER_BASE_IMAGE_TMPL ?= ubuntu:OS_RELEASE_PH
 HOST_OS_RELEASE = $(or $(shell cat /etc/lsb-release 2>/dev/null | grep -Po '(?<=CODENAME=)(.+)'), bionic)
 SUPPORTED_UBUNTU_RELEASES = xenial bionic focal
 VERSION_FILE = $(PWD)/pidtree_bcc/__init__.py
@@ -19,7 +20,7 @@ venv: requirements.txt requirements-dev.txt
 install-hooks: venv
 	venv/bin/pre-commit install -f --install-hooks
 
-cook-image: clean-cache
+cook-image: clean-cache docker-base-$(HOST_OS_RELEASE)
 	docker build -t pidtree-bcc --build-arg OS_RELEASE=$(HOST_OS_RELEASE) .
 
 docker-run: cook-image
@@ -43,11 +44,15 @@ testhosts:
 docker-run-testhosts: testhosts
 	make EXTRA_DOCKER_ARGS="-v $(CURDIR)/testhosts:/etc/hosts:ro" docker-run
 
-itest: clean-cache
+itest: clean-cache docker-base-$(HOST_OS_RELEASE)
 	./itest/itest.sh docker
 	./itest/itest_sourceipmap.sh
 
-itest_%: clean-cache
+docker-base-%: Dockerfile.base
+	$(eval dollar_star := $(subst ubuntu_,,$*))
+	docker build -t pidtree-docker-base-$(dollar_star) --build-arg BASE_IMAGE=$(subst OS_RELEASE_PH,$(dollar_star),$(DOCKER_BASE_IMAGE_TMPL)) -f Dockerfile.base .
+
+itest_%: clean-cache docker-base-%
 	./itest/itest.sh $*
 
 test: clean-cache
@@ -60,7 +65,7 @@ test-all: clean-cache
 	$(foreach release, $(SUPPORTED_UBUNTU_RELEASES), make package_ubuntu_$(release);)
 	$(foreach release, $(SUPPORTED_UBUNTU_RELEASES), make itest_ubuntu_$(release);)
 
-package_%:
+package_%: docker-base-%
 	make -C packaging package_$*
 
 clean-cache:

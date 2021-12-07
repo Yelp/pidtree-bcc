@@ -1,5 +1,5 @@
 ARG     OS_RELEASE=bionic
-FROM    ubuntu:${OS_RELEASE} as builder
+FROM    pidtree-docker-base-${OS_RELEASE} as builder
 ARG     BCC_VERSION=0.19.0
 
 RUN     apt-get update \
@@ -18,7 +18,7 @@ RUN     /usr/lib/pbuilder/pbuilder-satisfydepends && ./scripts/build-deb.sh rele
 
 
 #----------------------------------------------------------------------------------------------
-FROM    ubuntu:${OS_RELEASE}
+FROM    pidtree-docker-base-${OS_RELEASE}
 
 RUN     apt-get update \
         && DEBIAN_FRONTEND=noninteractive apt-get -y install \

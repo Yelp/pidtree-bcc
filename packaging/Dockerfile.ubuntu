@@ -1,5 +1,5 @@
 ARG     OS_RELEASE
-FROM    ubuntu:${OS_RELEASE}
+FROM    pidtree-docker-base-${OS_RELEASE}
 
 # Focal doesn't have dh-virtualenv in default repos
 # so we install it from the maintainer's PPA
