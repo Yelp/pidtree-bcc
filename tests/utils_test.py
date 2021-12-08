@@ -3,6 +3,8 @@ import sys
 from unittest.mock import call
 from unittest.mock import patch
 
+import pytest
+
 from pidtree_bcc import utils
 
 
@@ -42,3 +44,11 @@ def test_get_network_namespace(mock_os):
     ])
     mock_os.readlink.side_effect = Exception
     assert utils.get_network_namespace() is None
+
+
+def test_netmask_to_prefixlen():
+    assert utils.netmask_to_prefixlen('0.0.0.0') == 0
+    assert utils.netmask_to_prefixlen('255.255.255.255') == 32
+    assert utils.netmask_to_prefixlen('255.0.0.0') == 8
+    with pytest.raises(ValueError):
+        utils.netmask_to_prefixlen('1.1.1.1')
