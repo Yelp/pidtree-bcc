@@ -6,8 +6,6 @@
 #define SESSION_CONTINUE 2
 #define SESSION_END 3
 
-{{ utils.net_filter_masks(filters, ip_to_int) }}
-
 struct udp_session_event {
     u8  type;
     u32 pid;
@@ -18,6 +16,8 @@ struct udp_session_event {
 
 BPF_PERF_OUTPUT(events);
 BPF_HASH(tracing, u64, u8);
+
+{{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
 
 {{ utils.get_proto_func() }}
 
@@ -35,7 +35,7 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg
     u32 daddr = sin->sin_addr.s_addr ? sin->sin_addr.s_addr : sk->sk_daddr;
     u16 dport = sin->sin_port ? sin->sin_port : sk->sk_dport;
 
-    {{ utils.net_filter_if_excluded(filters) | indent(4) }} {
+    if (is_addr_port_filtered(daddr, dport)) {
         return 0;
     }
 
