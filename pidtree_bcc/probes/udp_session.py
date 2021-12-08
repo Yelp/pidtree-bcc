@@ -24,6 +24,7 @@ class UDPSessionProbe(BPFProbe):
         'includeports': [],
         'excludeports': [],
     }
+    USES_DYNAMIC_FILTERS = True
     SESSION_MAX_DURATION_DEFAULT = 120
     SESSION_START = 1
     SESSION_CONTINUE = 2

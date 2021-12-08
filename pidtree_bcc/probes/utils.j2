@@ -75,3 +75,50 @@ if (0
 {% endfor %})
 {% endif -%}
 {%- endmacro %}
+
+{% macro net_filter_trie_init(map_name, size=512, max_ports=8) -%}
+struct net_filter_key_t {
+    u32 prefixlen;
+    u32 data;
+};
+
+struct net_filter_port_range_t {
+    u16 lower;
+    u16 upper;
+};
+
+enum net_filter_mode { all = 0, exclude = 1, include = 2 };
+
+struct net_filter_val_t {
+    enum net_filter_mode mode;
+    u8 ranges_size;
+    struct net_filter_port_range_t ranges[{{ max_ports }}];
+};
+
+BPF_LPM_TRIE({{ map_name }}, struct net_filter_key_t, struct net_filter_val_t, {{ size }});
+
+// checks if the addr-port pairing is filtered
+static inline bool is_addr_port_filtered(u32 addr, u16 port) {
+    struct net_filter_key_t filter_key = { .prefixlen = 32, .data = addr };
+    struct net_filter_val_t* filter_val = {{ map_name }}.lookup(&filter_key);
+    if (filter_val != 0) {
+        struct net_filter_port_range_t curr;
+        if (filter_val->mode == all) {
+            return true;
+        }
+        for (u8 i = 0; i < {{ max_ports }}; i++) {
+            if (i >= filter_val->ranges_size) {
+                break;
+            }
+            curr = filter_val->ranges[i];
+            if (port >= curr.lower && port <= curr.upper) {
+                // range match, addr-port is filtered if in "include" mode
+                return filter_val->mode == include;
+            }
+        }
+        // no port range matched, addr-port is filtered only if in "exclude" mode
+        return filter_val->mode == exclude;
+    }
+    return false;
+}
+{%- endmacro %}

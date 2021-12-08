@@ -1,6 +1,7 @@
 import functools
 import importlib
 import inspect
+import ipaddress
 import logging
 import os
 import socket
@@ -98,6 +99,15 @@ def int_to_ip(encoded_ip: int) -> str:
     :return: dot-notation IP
     """
     return socket.inet_ntoa(struct.pack('<L', encoded_ip))
+
+
+def netmask_to_prefixlen(netmask: str) -> int:
+    """ Takes an IP netmask and returns the corresponding prefix length
+
+    :param str netmask: IP netmask (e.g. 255.255.0.0)
+    :return: prefix length
+    """
+    return ipaddress.ip_network('0.0.0.0/{}'.format(netmask)).prefixlen
 
 
 def never_crash(func: Callable) -> Callable:
