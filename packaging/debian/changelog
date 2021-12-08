@@ -1,3 +1,10 @@
+pidtree-bcc (2.0.0~alpha) unstable; urgency=medium
+
+  * Plumbing to store network filtering into eBPF map
+  * Migrate "UDP session" probe to dynamic net filters
+
+ -- Matteo Piano <mpiano@yelp.com>  Wed, 08 Dec 2021 08:52:43 -0800
+
 pidtree-bcc (1.8.0) unstable; urgency=medium
 
   * Improved system logging format
