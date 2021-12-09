@@ -1,3 +1,11 @@
+pidtree-bcc (2.0.0~alpha1) unstable; urgency=medium
+
+  * Add map filtering to TCP connect and net listen probes
+  * Fix port byte ordering in UDP probe
+  * Add more itests for port filtering settings
+
+ -- Matteo Piano <mpiano@yelp.com>  Thu, 09 Dec 2021 04:28:42 -0800
+
 pidtree-bcc (2.0.0~alpha) unstable; urgency=medium
 
   * Plumbing to store network filtering into eBPF map
