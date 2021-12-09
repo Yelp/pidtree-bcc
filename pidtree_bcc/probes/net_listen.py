@@ -39,6 +39,7 @@ class NetListenProbe(BPFProbe):
         'exclude_random_bind': False,
     }
     SUPPORTED_PROTOCOLS = ('udp', 'tcp')
+    USES_DYNAMIC_FILTERS = True
 
     def __init__(self, output_queue: SimpleQueue, config: dict = {}, *args, **kwargs):
         config = {**self.CONFIG_DEFAULTS, **config}

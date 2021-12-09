@@ -2,8 +2,6 @@
 #include <net/sock.h>
 #include <bcc/proto.h>
 
-{{ utils.net_filter_masks(filters, ip_to_int) }}
-
 BPF_HASH(currsock, u32, struct sock *);
 BPF_PERF_OUTPUT(events);
 
@@ -13,6 +11,8 @@ struct connection_t {
     u32 saddr;
     u16 dport;
 };
+
+{{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
 
 int kprobe__tcp_v4_connect(struct pt_regs *ctx, struct sock *sk)
 {
@@ -41,8 +41,7 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
     bpf_probe_read(&daddr, sizeof(daddr), &skp->__sk_common.skc_daddr);
     bpf_probe_read(&dport, sizeof(dport), &skp->__sk_common.skc_dport);
 
-    {{ utils.net_filter_if_excluded(filters) | indent(4) }} {
-        currsock.delete(&pid);
+    if (is_addr_port_filtered(daddr, ntohs(dport))) {
         return 0;
     }
 

@@ -36,6 +36,16 @@ _net_filters: &net_filters
     network: 127.0.0.0
     network_mask: 255.255.0.0
     description: "127.0/16 to get rid of the noise"
+  - subnet_name: 127_100_0_0__16
+    network: 127.100.0.0
+    network_mask: 255.255.0.0
+    description: "Test case for except_ports"
+    except_ports: [<port1>]
+  - subnet_name: 127_101_0_0__16
+    network: 127.101.0.0
+    network_mask: 255.255.0.0
+    description: "Test case for include_ports"
+    include_ports: [<port1>]
 
 tcp_connect:
   filters: *net_filters

@@ -35,7 +35,7 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg
     u32 daddr = sin->sin_addr.s_addr ? sin->sin_addr.s_addr : sk->sk_daddr;
     u16 dport = sin->sin_port ? sin->sin_port : sk->sk_dport;
 
-    if (is_addr_port_filtered(daddr, dport)) {
+    if (is_addr_port_filtered(daddr, ntohs(dport))) {
         return 0;
     }
 
