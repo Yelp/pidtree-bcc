@@ -98,6 +98,8 @@ struct net_filter_val_t {
 BPF_LPM_TRIE({{ map_name }}, struct net_filter_key_t, struct net_filter_val_t, {{ size }});
 
 // checks if the addr-port pairing is filtered
+// `addr` is expected in 32 bit integer format
+// `port` is expected in host byte order
 static inline bool is_addr_port_filtered(u32 addr, u16 port) {
     struct net_filter_key_t filter_key = { .prefixlen = 32, .data = addr };
     struct net_filter_val_t* filter_val = {{ map_name }}.lookup(&filter_key);

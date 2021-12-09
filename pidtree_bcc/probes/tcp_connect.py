@@ -15,6 +15,7 @@ class TCPConnectProbe(BPFProbe):
         'includeports': [],
         'excludeports': [],
     }
+    USES_DYNAMIC_FILTERS = True
 
     def enrich_event(self, event: Any) -> dict:
         """ Parses TCP connect event and adds process tree data

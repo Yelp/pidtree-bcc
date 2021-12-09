@@ -20,6 +20,9 @@ TEST_CASES=(
   "tcp_connect_exclude:create_connect_event $TEST_PORT_2:nc -w 1 127.1.33.7 $TEST_PORT_2:124"
   "udp_session_exclude:create_udp_event $TEST_PORT_2:nc -w 1 -u 127.1.33.7 $TEST_PORT_2:124"
   "net_listen_filter:create_listen_event $TEST_PORT_2 127.0.0.1:nc -w $TEST_LISTEN_TIMEOUT -lnp $TEST_PORT_2:124"
+  "tcp_connect_exclude_for_net:create_connect_event $TEST_PORT_1 127.100.33.7:nc -w 1 127.100.33.7 $TEST_PORT_1:0"
+  "tcp_connect_exclude_for_net_filtered:create_connect_event $TEST_PORT_2 127.100.33.7:nc -w 1 127.100.33.7 $TEST_PORT_2:124"
+  "tcp_connect_include_for_net:create_connect_event $TEST_PORT_1 127.101.33.7:nc -w 1 127.101.33.7 $TEST_PORT_1:124"
 )
 
 function is_port_used {
@@ -36,7 +39,7 @@ function create_connect_event {
   listener_pid=$!
   sleep 1
   echo "Making test connection"
-  nc -w 1 127.1.33.7 $1
+  nc -w 1 ${2:-127.1.33.7} $1
   wait $listener_pid
 }
 

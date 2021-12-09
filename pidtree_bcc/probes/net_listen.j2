@@ -2,8 +2,6 @@
 #include <net/sock.h>
 #include <bcc/proto.h>
 
-{{ utils.net_filter_masks(filters, ip_to_int) }}
-
 BPF_HASH(currsock, u32, struct sock*);
 BPF_PERF_OUTPUT(events);
 
@@ -13,6 +11,8 @@ struct listen_bind_t {
     u16 port;
     u8  protocol;
 };
+
+{{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
 
 {{ utils.get_proto_func() }}
 
@@ -32,12 +32,10 @@ static void net_listen_event(struct pt_regs *ctx)
     bpf_probe_read(&laddr, sizeof(u32), &sk->__sk_common.skc_rcv_saddr);
     bpf_probe_read(&port, sizeof(u16), &sk->__sk_common.skc_num);
 
-    {% if filters -%}
-    {{ utils.net_filter_if_excluded(filters, 'laddr', 'ntohs(port)') | indent(4) }} {
+    if (is_addr_port_filtered(laddr, port)) {
         currsock.delete(&pid);
         return;
     }
-    {% endif -%}
 
     {% if includeports or excludeports -%}
     {{ utils.include_exclude_ports(includeports, excludeports, 'port') | indent(4) }} {
