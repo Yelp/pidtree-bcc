@@ -17,7 +17,7 @@ struct udp_session_event {
 BPF_PERF_OUTPUT(events);
 BPF_HASH(tracing, u64, u8);
 
-{{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
+{{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, PORT_FILTER_MAP_NAME, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
 
 {{ utils.get_proto_func() }}
 
@@ -34,16 +34,11 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg
     struct sockaddr_in* sin = msg->msg_name;
     u32 daddr = sin->sin_addr.s_addr ? sin->sin_addr.s_addr : sk->sk_daddr;
     u16 dport = sin->sin_port ? sin->sin_port : sk->sk_dport;
+    dport = ntohs(dport);
 
-    if (is_addr_port_filtered(daddr, ntohs(dport))) {
+    if (is_addr_port_filtered(daddr, dport) || is_port_globally_filtered(dport)) {
         return 0;
     }
-
-    {% if includeports or excludeports -%}
-    {{ utils.include_exclude_ports(includeports, excludeports, 'ntohs(dport)') | indent(4) }} {
-        return 0;
-    }
-    {%- endif %}
 
     // Check if we are already tracing this session
     u64 sock_pointer = (u64) sk;
@@ -56,7 +51,6 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg
     session.sock_pointer = sock_pointer;
     bpf_probe_read(&session.daddr, sizeof(u32), &daddr);
     bpf_probe_read(&session.dport, sizeof(u16), &dport);
-    session.dport = ntohs(session.dport);
     events.perf_submit(ctx, &session, sizeof(session));
     if(trace_flag == SESSION_START) {
         // We don't care about the actual value in the map
