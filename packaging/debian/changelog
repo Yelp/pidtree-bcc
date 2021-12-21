@@ -1,3 +1,9 @@
+pidtree-bcc (2.0.0~alpha2) unstable; urgency=medium
+
+  * Switch global port filters to BPF arrays
+
+ -- Matteo Piano <mpiano@yelp.com>  Tue, 21 Dec 2021 03:04:36 -0800
+
 pidtree-bcc (2.0.0~alpha1) unstable; urgency=medium
 
   * Add map filtering to TCP connect and net listen probes
