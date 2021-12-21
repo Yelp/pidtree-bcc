@@ -1,5 +1,6 @@
 import inspect
 import json
+import logging
 import os.path
 import re
 from datetime import datetime
@@ -13,7 +14,9 @@ from jinja2 import Environment
 from jinja2 import FileSystemLoader
 
 from pidtree_bcc.filtering import load_filters_into_map
+from pidtree_bcc.filtering import load_port_filters_into_map
 from pidtree_bcc.filtering import NET_FILTER_MAX_PORT_RANGES
+from pidtree_bcc.filtering import PortFilterMode
 from pidtree_bcc.plugins import load_plugins
 from pidtree_bcc.utils import find_subclass
 
@@ -39,6 +42,7 @@ class BPFProbe:
     # (not via Jinja-templated if statements)
     USES_DYNAMIC_FILTERS = False
     NET_FILTER_MAP_NAME = 'net_filter_map'
+    PORT_FILTER_MAP_NAME = 'port_filter_map'
 
     def __init__(self, output_queue: SimpleQueue, probe_config: dict = {}, lost_event_telemetry: int = -1):
         """ Constructor
@@ -76,7 +80,13 @@ class BPFProbe:
             template_config.pop('plugins', None)
         if self.USES_DYNAMIC_FILTERS:
             self.net_filters = template_config['filters']
+            self.global_filters = (
+                (template_config['includeports'], PortFilterMode.include)
+                if template_config.get('includeports')
+                else (template_config.get('excludeports', []), PortFilterMode.exclude)
+            )
             template_config['NET_FILTER_MAP_NAME'] = self.NET_FILTER_MAP_NAME
+            template_config['PORT_FILTER_MAP_NAME'] = self.PORT_FILTER_MAP_NAME
             template_config['NET_FILTER_MAX_PORT_RANGES'] = NET_FILTER_MAX_PORT_RANGES
         jinja_env = Environment(loader=FileSystemLoader(os.path.dirname(module_src)))
         self.expanded_bpf_text = jinja_env.from_string(self.BPF_TEXT).render(**template_config)
@@ -138,7 +148,9 @@ class BPFProbe:
             extra_args = {}
             poll_func = self.bpf.perf_buffer_poll
         if self.USES_DYNAMIC_FILTERS:
+            logging.info('Loading filters into BPF maps')
             load_filters_into_map(self.net_filters, self.bpf[self.NET_FILTER_MAP_NAME])
+            load_port_filters_into_map(*self.global_filters, self.bpf[self.PORT_FILTER_MAP_NAME])
         self.bpf['events'].open_perf_buffer(self._process_events, **extra_args)
         while True:
             poll_func()

@@ -2,6 +2,7 @@ import ctypes
 import enum
 from collections import namedtuple
 from typing import Any
+from typing import Iterable
 from typing import List
 from typing import Union
 
@@ -95,6 +96,11 @@ class PortFilterMode(enum.IntEnum):
     include = 2
 
 
+def port_range_mapper(port_range: str) -> Iterable[int]:
+    from_p, to_p = map(int, port_range.split('-'))
+    return range(max(1, from_p), min(65535, to_p + 1))
+
+
 def load_filters_into_map(filters: List[dict], ebpf_map: Any):
     """ Loads network filters into a eBPF map. The map is expected to be a trie
     with prefix as they key and net_filter_val_t as elements, according to the
@@ -128,3 +134,26 @@ def load_filters_into_map(filters: List[dict], ebpf_map: Any):
             range_size=len(port_ranges),
             ranges=CFilterValue.range_array_t(*port_ranges),
         )
+
+
+def load_port_filters_into_map(filters: List[Union[int, str]], mode: PortFilterMode, ebpf_map: Any):
+    """ Loads global port filters into eBPF array map.
+    The map must be a BPF array with allocated space to fit all
+    the possible TCP/UDP ports (2^16).
+
+    :param List[Union[int, str]] filters: list of ports or port ranges
+    :param PortFilterMode mode: include or exclude
+    :param Any ebpf_map: array in which filters are loaded
+    """
+    if mode not in (PortFilterMode.include, PortFilterMode.exclude):
+        raise ValueError('Invalid global port filtering mode: {}'.format(mode))
+    # 0-element of the map holds the filtering mode
+    ebpf_map[ctypes.c_int(0)] = ctypes.c_uint8(mode.value)
+    for port_or_range in filters:
+        prange = (
+            port_range_mapper(port_or_range)
+            if isinstance(port_or_range, str) and '-' in port_or_range
+            else (int(port_or_range),)
+        )
+        for port in prange:
+            ebpf_map[ctypes.c_int(port)] = ctypes.c_uint8(1)

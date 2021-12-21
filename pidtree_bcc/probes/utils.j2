@@ -76,7 +76,7 @@ if (0
 {% endif -%}
 {%- endmacro %}
 
-{% macro net_filter_trie_init(map_name, size=512, max_ports=8) -%}
+{% macro net_filter_trie_init(prefix_filter_var_name, port_filter_var_name, size=512, max_ports=8) -%}
 struct net_filter_key_t {
     u32 prefixlen;
     u32 data;
@@ -95,14 +95,16 @@ struct net_filter_val_t {
     struct net_filter_port_range_t ranges[{{ max_ports }}];
 };
 
-BPF_LPM_TRIE({{ map_name }}, struct net_filter_key_t, struct net_filter_val_t, {{ size }});
+BPF_LPM_TRIE({{ prefix_filter_var_name }}, struct net_filter_key_t, struct net_filter_val_t, {{ size }});
+
+BPF_ARRAY({{ port_filter_var_name }}, u8, 65536);  // element 0 stores mode flag (exclude / include)
 
 // checks if the addr-port pairing is filtered
 // `addr` is expected in 32 bit integer format
 // `port` is expected in host byte order
 static inline bool is_addr_port_filtered(u32 addr, u16 port) {
     struct net_filter_key_t filter_key = { .prefixlen = 32, .data = addr };
-    struct net_filter_val_t* filter_val = {{ map_name }}.lookup(&filter_key);
+    struct net_filter_val_t* filter_val = {{ prefix_filter_var_name }}.lookup(&filter_key);
     if (filter_val != 0) {
         struct net_filter_port_range_t curr;
         if (filter_val->mode == all) {
@@ -122,5 +124,17 @@ static inline bool is_addr_port_filtered(u32 addr, u16 port) {
         return filter_val->mode == exclude;
     }
     return false;
+}
+
+// check if port is filtered globally in the probe configuration
+// `port` is expected in host byte order
+static inline bool is_port_globally_filtered(u16 port) {
+    int zero = 0, intport = (int)port;  // required cause array keys must be ints
+    u8* mode = {{port_filter_var_name}}.lookup(&zero);
+    u8* match = {{port_filter_var_name}}.lookup(&intport);
+    return (
+        (mode && match)  // we need to check the map pointers to make the compiler happy
+        && ((*mode == exclude && *match) || (*mode == include && !*match))
+    );
 }
 {%- endmacro %}

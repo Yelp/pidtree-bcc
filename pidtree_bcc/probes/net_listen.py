@@ -10,6 +10,7 @@ from typing import Any
 import psutil
 
 from pidtree_bcc.filtering import NetFilter
+from pidtree_bcc.filtering import port_range_mapper
 from pidtree_bcc.probes import BPFProbe
 from pidtree_bcc.utils import crawl_process_tree
 from pidtree_bcc.utils import get_network_namespace
@@ -48,10 +49,6 @@ class NetListenProbe(BPFProbe):
 
         super().__init__(output_queue, config, *args, **kwargs)
 
-        def port_range_mapper(port_range: str):
-            from_p, to_p = map(int, port_range.split('-'))
-            return max(0, from_p), min(65535, to_p + 1)
-
         self.log_tcp = 'tcp' in config['protocols']
         self.log_udp = 'udp' in config['protocols']
         self.filtering = NetFilter(config['filters'])
@@ -61,7 +58,7 @@ class NetListenProbe(BPFProbe):
         else:
             excludeports = set(
                 chain.from_iterable(
-                    range(*port_range_mapper(p)) if '-' in p else [int(p)]
+                    port_range_mapper(p) if '-' in p else [int(p)]
                     for p in map(str, config['excludeports'])
                 ),
             )
