@@ -44,7 +44,7 @@ class BPFProbe:
     NET_FILTER_MAP_NAME = 'net_filter_map'
     PORT_FILTER_MAP_NAME = 'port_filter_map'
 
-    def __init__(self, output_queue: SimpleQueue, probe_config: dict = {}, lost_event_telemetry: int = -1):
+    def __init__(self, output_queue: SimpleQueue, probe_config: dict = None, lost_event_telemetry: int = -1):
         """ Constructor
 
         :param Queue output_queue: queue for event output
@@ -57,6 +57,7 @@ class BPFProbe:
         :param int lost_event_telemetry: every how many messages emit the number of lost messages.
                                          Set to <= 0 to disable.
         """
+        probe_config = probe_config if probe_config else {}
         self.output_queue = output_queue
         self.validate_config(probe_config)
         module_src = inspect.getsourcefile(type(self))
@@ -69,15 +70,30 @@ class BPFProbe:
         if not hasattr(self, 'BPF_TEXT'):
             with open(re.sub(r'\.py$', '.j2', module_src)) as f:
                 self.BPF_TEXT = f.read()
+        template_config = self.build_probe_config(probe_config)
+        jinja_env = Environment(loader=FileSystemLoader(os.path.dirname(module_src)))
+        self.expanded_bpf_text = jinja_env.from_string(self.BPF_TEXT).render(**template_config)
+        self.lost_event_telemetry = lost_event_telemetry
+        self.lost_event_timer = lost_event_telemetry
+        self.lost_event_count = 0
+
+    def build_probe_config(self, probe_config: dict, hotswap_only: bool = False) -> dict:
+        """ Load probe configuration values
+
+        :param dict probe_config: probe configuration dictionary
+        :param bool hotswap_only: only load values which can be modified at runtime
+        :return: updated template configuration
+        """
         template_config = (
             {**self.CONFIG_DEFAULTS, **probe_config}
             if hasattr(self, 'CONFIG_DEFAULTS')
             else probe_config.copy()
         )
-        if hasattr(self, 'TEMPLATE_VARS'):
-            template_config = {k: template_config[k] for k in self.TEMPLATE_VARS}
-        else:
-            template_config.pop('plugins', None)
+        if not hotswap_only:
+            if hasattr(self, 'TEMPLATE_VARS'):
+                template_config = {k: template_config[k] for k in self.TEMPLATE_VARS}
+            else:
+                template_config.pop('plugins', None)
         if self.USES_DYNAMIC_FILTERS:
             self.net_filters = template_config['filters']
             self.global_filters = (
@@ -85,14 +101,11 @@ class BPFProbe:
                 if template_config.get('includeports')
                 else (template_config.get('excludeports', []), PortFilterMode.exclude)
             )
-            template_config['NET_FILTER_MAP_NAME'] = self.NET_FILTER_MAP_NAME
-            template_config['PORT_FILTER_MAP_NAME'] = self.PORT_FILTER_MAP_NAME
-            template_config['NET_FILTER_MAX_PORT_RANGES'] = NET_FILTER_MAX_PORT_RANGES
-        jinja_env = Environment(loader=FileSystemLoader(os.path.dirname(module_src)))
-        self.expanded_bpf_text = jinja_env.from_string(self.BPF_TEXT).render(**template_config)
-        self.lost_event_telemetry = lost_event_telemetry
-        self.lost_event_timer = lost_event_telemetry
-        self.lost_event_count = 0
+            if not hotswap_only:
+                template_config['NET_FILTER_MAP_NAME'] = self.NET_FILTER_MAP_NAME
+                template_config['PORT_FILTER_MAP_NAME'] = self.PORT_FILTER_MAP_NAME
+                template_config['NET_FILTER_MAX_PORT_RANGES'] = NET_FILTER_MAX_PORT_RANGES
+        return template_config
 
     def _process_events(self, cpu: Any, data: Any, size: Any, from_bpf: bool = True):
         """ BPF event callback

@@ -1,7 +1,6 @@
 import time
 import traceback
 from collections import namedtuple
-from multiprocessing import SimpleQueue
 from threading import Lock
 from typing import Any
 from typing import Union
@@ -30,14 +29,16 @@ class UDPSessionProbe(BPFProbe):
     SESSION_CONTINUE = 2
     SESSION_END = 3
 
-    def __init__(self, output_queue: SimpleQueue, config: dict = {}, *args, **kwargs):
-        super().__init__(output_queue, config, *args, **kwargs)
-        self.session_tracking = {}
-        self.thread_lock = Lock()
-        self.SIDECARS.append((
-            self._session_expiration_worker,
-            (config.get('session_max_duration', self.SESSION_MAX_DURATION_DEFAULT),),
-        ))
+    def build_probe_config(self, probe_config: dict, hotswap_only: bool = False) -> dict:
+        config = super().build_probe_config(probe_config, hotswap_only=hotswap_only)
+        if not hotswap_only:
+            self.session_tracking = {}
+            self.thread_lock = Lock()
+            self.SIDECARS.append((
+                self._session_expiration_worker,
+                (config.get('session_max_duration', self.SESSION_MAX_DURATION_DEFAULT),),
+            ))
+        return config
 
     def enrich_event(self, event: Any) -> Union[dict, None]:
         """ Parses UDP session event and adds process tree data

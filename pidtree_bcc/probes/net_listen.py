@@ -4,7 +4,6 @@ import time
 import traceback
 from collections import namedtuple
 from itertools import chain
-from multiprocessing import SimpleQueue
 from typing import Any
 
 import psutil
@@ -42,15 +41,10 @@ class NetListenProbe(BPFProbe):
     SUPPORTED_PROTOCOLS = ('udp', 'tcp')
     USES_DYNAMIC_FILTERS = True
 
-    def __init__(self, output_queue: SimpleQueue, config: dict = {}, *args, **kwargs):
-        config = {**self.CONFIG_DEFAULTS, **config}
+    def build_probe_config(self, probe_config: dict, hotswap_only: bool = False) -> dict:
+        config = super().build_probe_config(probe_config)
         config['net_namespace'] = get_network_namespace() if config['same_namespace_only'] else None
         self.net_namespace = config['net_namespace']
-
-        super().__init__(output_queue, config, *args, **kwargs)
-
-        self.log_tcp = 'tcp' in config['protocols']
-        self.log_udp = 'udp' in config['protocols']
         self.filtering = NetFilter(config['filters'])
         if config['includeports']:
             includeports = set(map(int, config['includeports']))
@@ -63,11 +57,15 @@ class NetListenProbe(BPFProbe):
                 ),
             )
             self.port_filter = lambda port: port not in excludeports
-        if config['snapshot_periodicity'] and config['snapshot_periodicity'] > 0:
-            self.SIDECARS.append((
-                self._snapshot_worker,
-                (config['snapshot_periodicity'],),
-            ))
+        if not hotswap_only:
+            self.log_tcp = 'tcp' in config['protocols']
+            self.log_udp = 'udp' in config['protocols']
+            if config['snapshot_periodicity'] and config['snapshot_periodicity'] > 0:
+                self.SIDECARS.append((
+                    self._snapshot_worker,
+                    (config['snapshot_periodicity'],),
+                ))
+        return config
 
     def validate_config(self, config: dict):
         """ Checks if config values are valid """
