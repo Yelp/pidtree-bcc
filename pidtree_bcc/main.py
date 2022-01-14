@@ -14,9 +14,10 @@ from typing import Callable
 from typing import List
 from typing import TextIO
 
-import yaml
+from staticconf.config import ConfigurationWatcher
 
 from pidtree_bcc import __version__
+from pidtree_bcc.config import setup_config
 from pidtree_bcc.probes import load_probes
 from pidtree_bcc.utils import smart_open
 
@@ -47,6 +48,10 @@ def parse_args() -> argparse.Namespace:
         help='File to output to (default is STDOUT, denoted by -)',
     )
     parser.add_argument(
+        '-w', '--watch-config', action='store_true', default=False,
+        help='Enable configuration file watch and hot-swapping for probe network filters',
+    )
+    parser.add_argument(
         '--lost-event-telemetry', type=int, default=-1, metavar='NEVENTS',
         help=(
             'If set and greater than 0, output telemetry every NEVENTS about the number '
@@ -69,18 +74,6 @@ def parse_args() -> argparse.Namespace:
     if args.config is not None and not os.path.exists(args.config):
         sys.stderr.write('--config file does not exist\n')
     return args
-
-
-def parse_config(config_file: str) -> dict:
-    """ Parses yaml config file (if indicated)
-
-    :param str config_file: config file path
-    :return: configuration dictionary
-    """
-    if config_file is None:
-        return {}
-    with open(config_file) as f:
-        return yaml.safe_load(f)
 
 
 def termination_handler(probe_workers: List[Process], signum: int, frame: Any):
@@ -109,11 +102,16 @@ def deregister_signals(func: Callable):
     return helper
 
 
-def health_watchdog(probe_workers: List[Process], output_fh: TextIO):
-    """ Check that probe processes are alive and output file is writable
+def health_and_config_watchdog(
+    probe_workers: List[Process],
+    output_fh: TextIO,
+    config_watcher: ConfigurationWatcher = None,
+):
+    """ Check that probe processes are alive, output file is writable and monitor configuration changes
 
     :param List[Process] probe_workers: list of probe processes
     :param TextIO output_fh: Output file handle
+    :param ConfigurationWatcher config_watcher: Watcher for monitoring configuration changes
     """
     global EXIT_CODE
     fs_poller = select.poll()
@@ -127,6 +125,8 @@ def health_watchdog(probe_workers: List[Process], output_fh: TextIO):
             logging.error('{}, exiting'.format(msg))
             os.kill(os.getpid(), signal.SIGTERM)
             break
+        if config_watcher:
+            config_watcher.reload_if_changed()
 
 
 def main(args: argparse.Namespace):
@@ -140,11 +140,10 @@ def main(args: argparse.Namespace):
     curried_handler = partial(termination_handler, probe_workers)
     for s in HANDLED_SIGNALS:
         signal.signal(s, curried_handler)
-    config = parse_config(args.config)
+    config_watcher = setup_config(args.config, watch_config=args.watch_config)
     out = smart_open(args.output_file, mode='w')
     output_queue = SimpleQueue()
     probes = load_probes(
-        config,
         output_queue,
         args.extra_probe_path,
         args.extra_plugin_path,
@@ -160,7 +159,11 @@ def main(args: argparse.Namespace):
     for probe in probes.values():
         probe_workers.append(Process(target=deregister_signals(probe.start_polling)))
         probe_workers[-1].start()
-    watchdog_thread = Thread(target=health_watchdog, args=(probe_workers, out), daemon=True)
+    watchdog_thread = Thread(
+        target=health_and_config_watchdog,
+        args=(probe_workers, out, config_watcher),
+        daemon=True,
+    )
     watchdog_thread.start()
     try:
         while True:

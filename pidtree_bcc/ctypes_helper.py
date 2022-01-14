@@ -3,6 +3,7 @@ Some utilities instrumenting ctypes declaration to make them more
 "object-oriented friendly", mostly to facilitate testing.
 """
 import ctypes
+from functools import reduce
 
 
 class ComparableCtStructure(ctypes.Structure):
@@ -13,6 +14,9 @@ class ComparableCtStructure(ctypes.Structure):
             if getattr(self, field[0]) != getattr(other, field[0]):
                 return False
         return True
+
+    def __hash__(self) -> int:
+        return reduce(lambda a, b: a ^ b, (hash(getattr(self, field[0])) for field in self._fields_), 0)
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
