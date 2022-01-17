@@ -1,6 +1,6 @@
 #!/bin/bash -eE
 
-export OUTPUT_NAME=itest/itest_output_$$
+export OUTPUT_NAME=itest/tmp/itest_output_$$
 export TEST_PORT_1=${TEST_CONNECT_PORT:-31337}
 export TEST_PORT_2=${TEST_LISTEN_PORT:-41337}
 export TEST_LISTEN_TIMEOUT=${TEST_LISTEN_TIMEOUT:-2}
@@ -65,12 +65,12 @@ function cleanup {
   echo "CLEANUP: Killing container"
   docker kill $CONTAINER_NAME
   echo "CLEANUP: Removing FIFO"
-  rm -f $OUTPUT_NAME $TOPLEVEL/itest/config.yml
+  rm -f $TOPLEVEL/$OUTPUT_NAME $TOPLEVEL/itest/config.yml
 }
 
 function wait_for_tame_output {
   echo "Tailing output $OUTPUT_NAME to catch test traffic '$1'"
-  tail -n0 -f $OUTPUT_NAME | while read line; do
+  tail -n0 -f $TOPLEVEL/$OUTPUT_NAME | while read line; do
     if echo "$line" | grep "$1"; then
       echo "Caught test traffic matching '$1'"
       pkill -x --parent $$ tail
@@ -83,11 +83,12 @@ function wait_for_tame_output {
 
 function main {
   trap cleanup EXIT
+  mkdir -p $TOPLEVEL/itest/tmp
   is_port_used $TEST_PORT_1
   is_port_used $TEST_PORT_2
-  sed "s/<port1>/$TEST_PORT_1/g; s/<port2>/$TEST_PORT_2/g" $TOPLEVEL/itest/itest_config.yml > $TOPLEVEL/itest/config.yml
+  sed "s/<port1>/$TEST_PORT_1/g; s/<port2>/$TEST_PORT_2/g" $TOPLEVEL/itest/config_generic.yml > $TOPLEVEL/itest/tmp/config.yml
   if [ "$DEBUG" = "true" ]; then set -x; fi
-  touch $OUTPUT_NAME
+  touch $TOPLEVEL/$OUTPUT_NAME
   if [[ "$1" = "docker" ]]; then
     echo "Building itest image"
     # Build the base image
@@ -103,7 +104,7 @@ function main {
     echo "Launching itest-container $CONTAINER_NAME"
     docker run --name $CONTAINER_NAME -d\
         --rm --privileged --cap-add sys_admin --pid host \
-        -v $TOPLEVEL/itest/config.yml:/work/config.yml \
+        -v $TOPLEVEL/itest/tmp/config.yml:/work/config.yml \
         -v $TOPLEVEL/$OUTPUT_NAME:/work/outfile \
         pidtree-itest -c /work/config.yml -f /work/outfile
   elif [[ "$1" =~ ^ubuntu_[a-z]+$ ]]; then
@@ -119,11 +120,10 @@ function main {
         --build-arg OS_RELEASE=${1/ubuntu_/} --build-arg HOSTRELEASE=$DISTRIB_CODENAME itest/
     docker run --name $CONTAINER_NAME -d \
         --rm --privileged --cap-add sys_admin --pid host \
-        -v $TOPLEVEL/itest/config.yml:/work/config.yml \
+        -v $TOPLEVEL/itest/tmp/config.yml:/work/config.yml \
         -v $TOPLEVEL/$OUTPUT_NAME:/work/outfile \
         -v $TOPLEVEL/itest/dist/$1/:/work/dist \
-        -v $TOPLEVEL/itest/deb_package_itest.sh:/work/deb_package_itest.sh \
-        pidtree-itest-$1 /work/deb_package_itest.sh run -c /work/config.yml -f /work/outfile
+        pidtree-itest-$1 /work/entrypoint_deb_package.sh run -c /work/config.yml -f /work/outfile
   else
     echo "ERROR: '$@' is not a supported argument (see 'itest/itest.sh' for options)" >&2
     exit 1
