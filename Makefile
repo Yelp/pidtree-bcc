@@ -47,6 +47,7 @@ docker-run-testhosts: testhosts
 itest: clean-cache docker-base-$(HOST_OS_RELEASE)
 	./itest/itest_generic.sh docker
 	./itest/itest_sourceipmap.sh
+	./itest/itest_autoreload.sh
 
 docker-base-%: Dockerfile.base
 	$(eval dollar_star := $(subst ubuntu_,,$*))
