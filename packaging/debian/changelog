@@ -1,3 +1,9 @@
+pidtree-bcc (2.0.0~alpha3) unstable; urgency=medium
+
+  * Allow hot-swapping network filters when configuration changes
+
+ -- Matteo Piano <mpiano@yelp.com>  Thu, 20 Jan 2022 04:01:07 -0800
+
 pidtree-bcc (2.0.0~alpha2) unstable; urgency=medium
 
   * Switch global port filters to BPF arrays
