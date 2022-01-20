@@ -28,6 +28,6 @@ COPY    --from=builder /bcc/*.deb /bcc/
 RUN     apt-get update && apt-get install -y /bcc/libbcc_*.deb /bcc/python3-bcc*.deb
 
 # Test package install
-ADD     deb_package_itest.sh /work/deb_package_itest.sh
+ADD     entrypoint_deb_package.sh /work/entrypoint_deb_package.sh
 ADD     dist/ubuntu_${OS_RELEASE}/ /work/dist/
-RUN     /work/deb_package_itest.sh setup ${HOSTRELEASE}
+RUN     /work/entrypoint_deb_package.sh setup ${HOSTRELEASE}

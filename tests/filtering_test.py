@@ -1,4 +1,4 @@
-from unittest.mock import call
+import ctypes
 from unittest.mock import MagicMock
 
 import pytest
@@ -73,26 +73,43 @@ def test_load_filters_into_map():
             'include_ports': ['100-200'],
         },
     ]
-    res_map = MagicMock()
+    res_map = {}
     load_filters_into_map(mock_filters, res_map)
-    res_map.__setitem__.assert_has_calls([
-        call(
-            CFilterKey(prefixlen=8, data=16777343),
-            CFilterValue(mode=0, range_size=0),
+    assert res_map == {
+        CFilterKey(prefixlen=8, data=16777343): CFilterValue(mode=0, range_size=0),
+        CFilterKey(prefixlen=8, data=16777226): CFilterValue(
+            mode=1,
+            range_size=2,
+            ranges=CFilterValue.range_array_t(CPortRange(123, 123), CPortRange(456, 456)),
         ),
-        call(
-            CFilterKey(prefixlen=8, data=16777226),
-            CFilterValue(
-                mode=1,
-                range_size=2,
-                ranges=CFilterValue.range_array_t(CPortRange(123, 123), CPortRange(456, 456)),
-            ),
+        CFilterKey(prefixlen=16, data=16820416): CFilterValue(
+            mode=2, range_size=1, ranges=CFilterValue.range_array_t(CPortRange(100, 200)),
         ),
-        call(
-            CFilterKey(prefixlen=16, data=16820416),
-            CFilterValue(mode=2, range_size=1, ranges=CFilterValue.range_array_t(CPortRange(100, 200))),
+    }
+
+
+def test_load_filters_into_map_diff():
+    mock_filters = [
+        {
+            'network': '127.0.0.1',
+            'network_mask': '255.0.0.0',
+        },
+        {
+            'network': '10.0.0.1',
+            'network_mask': '255.0.0.0',
+            'except_ports': [123, 456],
+        },
+    ]
+    res_map = {CFilterKey(prefixlen=8, data=16777343): 'foo', CFilterKey(prefixlen=8, data=16777344): 'bar'}
+    load_filters_into_map(mock_filters, res_map, True)
+    assert res_map == {
+        CFilterKey(prefixlen=8, data=16777343): CFilterValue(mode=0, range_size=0),
+        CFilterKey(prefixlen=8, data=16777226): CFilterValue(
+            mode=1,
+            range_size=2,
+            ranges=CFilterValue.range_array_t(CPortRange(123, 123), CPortRange(456, 456)),
         ),
-    ])
+    }
 
 
 @pytest.mark.parametrize(
@@ -107,6 +124,20 @@ def test_load_port_filters_into_map(filter_input, mode, expected):
     res_map = MagicMock()
     load_port_filters_into_map(filter_input, mode, res_map)
     assert expected == {
+        call_args[0][0].value: call_args[0][1].value
+        for call_args in res_map.__setitem__.call_args_list
+    }
+
+
+def test_load_port_filters_into_map_diff():
+    res_map = MagicMock()
+    res_map.items.return_value = [(ctypes.c_int(i), ctypes.c_uint8(i % 2)) for i in range(16)]
+    load_port_filters_into_map(range(1, 6), PortFilterMode.include, res_map, True)
+    assert {
+        0: 2,
+        **{i: 1 for i in range(1, 6)},
+        **{i: 0 for i in range(6, 16) if i % 2 > 0},
+    } == {
         call_args[0][0].value: call_args[0][1].value
         for call_args in res_map.__setitem__.call_args_list
     }

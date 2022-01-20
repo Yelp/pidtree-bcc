@@ -13,12 +13,14 @@ from bcc import BPF
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
 
+from pidtree_bcc.config import enumerate_probe_configs
 from pidtree_bcc.filtering import load_filters_into_map
 from pidtree_bcc.filtering import load_port_filters_into_map
 from pidtree_bcc.filtering import NET_FILTER_MAX_PORT_RANGES
 from pidtree_bcc.filtering import PortFilterMode
 from pidtree_bcc.plugins import load_plugins
 from pidtree_bcc.utils import find_subclass
+from pidtree_bcc.utils import never_crash
 
 
 class BPFProbe:
@@ -44,7 +46,13 @@ class BPFProbe:
     NET_FILTER_MAP_NAME = 'net_filter_map'
     PORT_FILTER_MAP_NAME = 'port_filter_map'
 
-    def __init__(self, output_queue: SimpleQueue, probe_config: dict = {}, lost_event_telemetry: int = -1):
+    def __init__(
+        self,
+        output_queue: SimpleQueue,
+        probe_config: dict = None,
+        lost_event_telemetry: int = -1,
+        config_change_queue: SimpleQueue = None,
+    ):
         """ Constructor
 
         :param Queue output_queue: queue for event output
@@ -56,7 +64,9 @@ class BPFProbe:
                                   variable containing default templating variables.
         :param int lost_event_telemetry: every how many messages emit the number of lost messages.
                                          Set to <= 0 to disable.
+        :param SimpleQueue config_change_queue: queue for passing configuration changes
         """
+        probe_config = probe_config if probe_config else {}
         self.output_queue = output_queue
         self.validate_config(probe_config)
         module_src = inspect.getsourcefile(type(self))
@@ -69,15 +79,32 @@ class BPFProbe:
         if not hasattr(self, 'BPF_TEXT'):
             with open(re.sub(r'\.py$', '.j2', module_src)) as f:
                 self.BPF_TEXT = f.read()
+        template_config = self.build_probe_config(probe_config)
+        jinja_env = Environment(loader=FileSystemLoader(os.path.dirname(module_src)))
+        self.expanded_bpf_text = jinja_env.from_string(self.BPF_TEXT).render(**template_config)
+        self.lost_event_telemetry = lost_event_telemetry
+        self.lost_event_timer = lost_event_telemetry
+        self.lost_event_count = 0
+        if self.USES_DYNAMIC_FILTERS and config_change_queue:
+            self.SIDECARS.append((self._poll_config_changes, (config_change_queue,)))
+
+    def build_probe_config(self, probe_config: dict, hotswap_only: bool = False) -> dict:
+        """ Load probe configuration values
+
+        :param dict probe_config: probe configuration dictionary
+        :param bool hotswap_only: only load values which can be modified at runtime
+        :return: updated template configuration
+        """
         template_config = (
             {**self.CONFIG_DEFAULTS, **probe_config}
             if hasattr(self, 'CONFIG_DEFAULTS')
             else probe_config.copy()
         )
-        if hasattr(self, 'TEMPLATE_VARS'):
-            template_config = {k: template_config[k] for k in self.TEMPLATE_VARS}
-        else:
-            template_config.pop('plugins', None)
+        if not hotswap_only:
+            if hasattr(self, 'TEMPLATE_VARS'):
+                template_config = {k: template_config[k] for k in self.TEMPLATE_VARS}
+            else:
+                template_config.pop('plugins', None)
         if self.USES_DYNAMIC_FILTERS:
             self.net_filters = template_config['filters']
             self.global_filters = (
@@ -85,14 +112,11 @@ class BPFProbe:
                 if template_config.get('includeports')
                 else (template_config.get('excludeports', []), PortFilterMode.exclude)
             )
-            template_config['NET_FILTER_MAP_NAME'] = self.NET_FILTER_MAP_NAME
-            template_config['PORT_FILTER_MAP_NAME'] = self.PORT_FILTER_MAP_NAME
-            template_config['NET_FILTER_MAX_PORT_RANGES'] = NET_FILTER_MAX_PORT_RANGES
-        jinja_env = Environment(loader=FileSystemLoader(os.path.dirname(module_src)))
-        self.expanded_bpf_text = jinja_env.from_string(self.BPF_TEXT).render(**template_config)
-        self.lost_event_telemetry = lost_event_telemetry
-        self.lost_event_timer = lost_event_telemetry
-        self.lost_event_count = 0
+            if not hotswap_only:
+                template_config['NET_FILTER_MAP_NAME'] = self.NET_FILTER_MAP_NAME
+                template_config['PORT_FILTER_MAP_NAME'] = self.PORT_FILTER_MAP_NAME
+                template_config['NET_FILTER_MAX_PORT_RANGES'] = NET_FILTER_MAX_PORT_RANGES
+        return template_config
 
     def _process_events(self, cpu: Any, data: Any, size: Any, from_bpf: bool = True):
         """ BPF event callback
@@ -136,6 +160,26 @@ class BPFProbe:
             self._add_event_metadata(event)
             self.output_queue.put(json.dumps(event))
 
+    @never_crash
+    def _poll_config_changes(self, config_queue: SimpleQueue):
+        """ Polls configuration changes from the dedicated queue and reloads filters when they happen
+
+        :param SimpleQueue config_change_queue: queue for passing configuration changes
+        """
+        while True:
+            config_data = config_queue.get()
+            self.build_probe_config(config_data, hotswap_only=True)
+            self.reload_filters()
+
+    def reload_filters(self, is_init: bool = False):
+        """ Load filters
+
+        :param bool is_init: Indicate this is the first time loading
+        """
+        logging.info('[{}] {}oading filters into BPF maps'.format(self.probe_name, 'L' if is_init else 'Rel'))
+        load_filters_into_map(self.net_filters, self.bpf[self.NET_FILTER_MAP_NAME], not is_init)
+        load_port_filters_into_map(*self.global_filters, self.bpf[self.PORT_FILTER_MAP_NAME], not is_init)
+
     def start_polling(self):
         """ Start infinite loop polling BPF events """
         for func, args in self.SIDECARS:
@@ -148,9 +192,7 @@ class BPFProbe:
             extra_args = {}
             poll_func = self.bpf.perf_buffer_poll
         if self.USES_DYNAMIC_FILTERS:
-            logging.info('Loading filters into BPF maps')
-            load_filters_into_map(self.net_filters, self.bpf[self.NET_FILTER_MAP_NAME])
-            load_port_filters_into_map(*self.global_filters, self.bpf[self.PORT_FILTER_MAP_NAME])
+            self.reload_filters(is_init=True)
         self.bpf['events'].open_perf_buffer(self._process_events, **extra_args)
         while True:
             poll_func()
@@ -173,7 +215,6 @@ class BPFProbe:
 
 
 def load_probes(
-    config: dict,
     output_queue: SimpleQueue,
     extra_probe_path: str = None,
     extra_plugin_path: str = None,
@@ -194,7 +235,7 @@ def load_probes(
         probe_name: find_subclass(
             ['{}.{}'.format(p, probe_name) for p in packages],
             BPFProbe,
-        )(output_queue, probe_config, lost_event_telemetry)
-        for probe_name, probe_config in config.items()
+        )(output_queue, probe_config, lost_event_telemetry, conf_change_queue)
+        for probe_name, probe_config, conf_change_queue in enumerate_probe_configs()
         if not probe_name.startswith('_')
     }

@@ -1,6 +1,7 @@
 import ctypes
 import enum
 from collections import namedtuple
+from itertools import chain
 from typing import Any
 from typing import Iterable
 from typing import List
@@ -101,10 +102,13 @@ def port_range_mapper(port_range: str) -> Iterable[int]:
     return range(max(1, from_p), min(65535, to_p + 1))
 
 
-def load_filters_into_map(filters: List[dict], ebpf_map: Any):
+def load_filters_into_map(filters: List[dict], ebpf_map: Any, do_diff: bool = False):
     """ Loads network filters into a eBPF map. The map is expected to be a trie
     with prefix as they key and net_filter_val_t as elements, according to the
     type definitions in the `net_filter_trie_init` macro in `utils.j2`.
+
+    NOTE: modifying values in the map is not atomic, hence it may cause a brief moment
+    of inconsistency between probe output and configuration.
 
     :param List[dict] filters: list of IP-ports filters. Format:
                                 {
@@ -115,6 +119,13 @@ def load_filters_into_map(filters: List[dict], ebpf_map: Any):
                                 }
     :param Any ebpf_map: reference to eBPF table where filters should be loaded.
     """
+    leftovers = set(
+        # The map returns keys using an auto-generated type.
+        # Casting works, but we don't want to keep map references anyway to avoid
+        # side effect, so we might as well unpack them explicitly
+        (CFilterKey(prefixlen=k.prefixlen, data=k.data) for k in ebpf_map)
+        if do_diff else [],
+    )
     for entry in filters:
         map_key = CFilterKey(
             prefixlen=netmask_to_prefixlen(entry['network_mask']),
@@ -134,12 +145,23 @@ def load_filters_into_map(filters: List[dict], ebpf_map: Any):
             range_size=len(port_ranges),
             ranges=CFilterValue.range_array_t(*port_ranges),
         )
+        leftovers.discard(map_key)
+    for key in leftovers:
+        del ebpf_map[key]
 
 
-def load_port_filters_into_map(filters: List[Union[int, str]], mode: PortFilterMode, ebpf_map: Any):
+def load_port_filters_into_map(
+    filters: List[Union[int, str]],
+    mode: PortFilterMode,
+    ebpf_map: Any,
+    do_diff: bool = False,
+):
     """ Loads global port filters into eBPF array map.
-    The map must be a BPF array with allocated space to fit all
-    the possible TCP/UDP ports (2^16).
+    The map must be a BPF array with allocated space to fit all the possible TCP/UDP ports (2^16).
+
+    NOTE: modifying values in the map is not atomic, hence it may cause a brief moment
+    of inconsistency between probe output and configuration. For this reason, hot-swapping
+    the filtering mode is supported but not recommended.
 
     :param List[Union[int, str]] filters: list of ports or port ranges
     :param PortFilterMode mode: include or exclude
@@ -147,13 +169,19 @@ def load_port_filters_into_map(filters: List[Union[int, str]], mode: PortFilterM
     """
     if mode not in (PortFilterMode.include, PortFilterMode.exclude):
         raise ValueError('Invalid global port filtering mode: {}'.format(mode))
-    # 0-element of the map holds the filtering mode
-    ebpf_map[ctypes.c_int(0)] = ctypes.c_uint8(mode.value)
-    for port_or_range in filters:
-        prange = (
+    current_state = set((k.value for k, v in ebpf_map.items() if v.value > 0 and k.value > 0) if do_diff else [])
+    portset = set(
+        chain.from_iterable(
             port_range_mapper(port_or_range)
             if isinstance(port_or_range, str) and '-' in port_or_range
             else (int(port_or_range),)
-        )
-        for port in prange:
-            ebpf_map[ctypes.c_int(port)] = ctypes.c_uint8(1)
+            for port_or_range in filters
+        ),
+    )
+    leftovers = current_state - portset
+    for port in portset:
+        ebpf_map[ctypes.c_int(port)] = ctypes.c_uint8(1)
+    for port in leftovers:
+        ebpf_map[ctypes.c_int(port)] = ctypes.c_uint8(0)
+    # 0-element of the map holds the filtering mode
+    ebpf_map[ctypes.c_int(0)] = ctypes.c_uint8(mode.value)

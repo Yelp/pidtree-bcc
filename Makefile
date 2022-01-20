@@ -45,15 +45,16 @@ docker-run-testhosts: testhosts
 	make EXTRA_DOCKER_ARGS="-v $(CURDIR)/testhosts:/etc/hosts:ro" docker-run
 
 itest: clean-cache docker-base-$(HOST_OS_RELEASE)
-	./itest/itest.sh docker
+	./itest/itest_generic.sh docker
 	./itest/itest_sourceipmap.sh
+	./itest/itest_autoreload.sh
 
 docker-base-%: Dockerfile.base
 	$(eval dollar_star := $(subst ubuntu_,,$*))
 	docker build -t pidtree-docker-base-$(dollar_star) --build-arg BASE_IMAGE=$(subst OS_RELEASE_PH,$(dollar_star),$(DOCKER_BASE_IMAGE_TMPL)) -f Dockerfile.base .
 
 itest_%: clean-cache docker-base-%
-	./itest/itest.sh $*
+	./itest/itest_generic.sh $*
 
 test: clean-cache
 	tox
@@ -74,8 +75,7 @@ clean-cache:
 
 clean: clean-cache
 	rm -Rf packaging/dist itest/dist
-	rm -f itest/itest_output_* itest/itest_server_*
-	rm -Rf itest/itest-sourceip-* itest/tmp
+	rm -Rf itest/tmp
 	rm -Rf .tox venv
 
 release:

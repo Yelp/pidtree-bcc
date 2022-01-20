@@ -1,17 +1,20 @@
 #!/bin/bash -e
 
+export TOPLEVEL=$(git rev-parse --show-toplevel)
 export CONTAINER_NAME=pidtree-mapping-itest-$$
 export TAME_CONTAINER_NAME=hello-$$
-export FIFONAME=itest/itest-sourceip-$$
+export FIFONAME=itest/tmp/itest-sourceip-$$
 
-itest/gen-ip-mapping.sh itest/tmp/ipmapping.txt 2 &
+mkdir -p $TOPLEVEL/itest/tmp
+
+$TOPLEVEL/itest/gen-ip-mapping.sh $TOPLEVEL/itest/tmp/maps/ipmapping.txt 2 &
 MAPGEN_PID=$!
 
 function cleanup {
     set +e
     kill $MAPGEN_PID
     docker kill $CONTAINER_NAME
-    rm -f $FIFONAME
+    rm -f $TOPLEVEL/$FIFONAME
 }
 
 function test_output {
@@ -19,12 +22,12 @@ function test_output {
     while read line; do
         echo $line | grep $TAME_CONTAINER_NAME
         [ $? -eq 0 ] && return 0
-    done <$FIFONAME
+    done < $TOPLEVEL/$FIFONAME
 }
 
 trap cleanup INT EXIT
 
-mkfifo $FIFONAME
+mkfifo $TOPLEVEL/$FIFONAME
 
 if [ -f /etc/lsb-release ]; then
     source /etc/lsb-release
@@ -38,9 +41,9 @@ docker pull ubuntu:latest
 echo "Creating background pidtree-bcc container to catch traffic"
 docker run --name $CONTAINER_NAME --rm -d\
     --rm --privileged --cap-add sys_admin --pid host \
-    -v $(git rev-parse --show-toplevel)/itest/mapping_config.yml:/work/config.yml \
-    -v $(git rev-parse --show-toplevel)/itest/tmp:/maps/ \
-    -v $(git rev-parse --show-toplevel)/$FIFONAME:/work/output \
+    -v $TOPLEVEL/itest/config_mapping.yml:/work/config.yml \
+    -v $TOPLEVEL/itest/tmp/maps:/maps/ \
+    -v $TOPLEVEL/$FIFONAME:/work/output \
     pidtree-itest -c /work/config.yml -f /work/output
 
 echo "Creating background container $TAME_CONTAINER_NAME to send traffic"
