@@ -24,6 +24,7 @@ from pidtree_bcc.utils import smart_open
 
 
 EXIT_CODE = 0
+MAX_RESTARTS = 100
 HEALTH_CHECK_PERIOD_DEFAULT = 60  # seconds
 HANDLED_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
 
@@ -219,9 +220,11 @@ def main(args: argparse.Namespace):
 
 
 if __name__ == '__main__':
-    while True:
+    restart_attempts = 0
+    while restart_attempts < MAX_RESTARTS:
         try:
             main(parse_args())
             break
         except RestartSignal:
+            restart_attempts += 1
             pass
