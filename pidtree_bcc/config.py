@@ -13,15 +13,23 @@ from staticconf.config import get_namespaces_from_names
 from staticconf.loader import DictConfiguration
 
 from pidtree_bcc.utils import never_crash
+from pidtree_bcc.utils import self_restart
 
 
-HOTSWAP_CALLBACK_FIELD = '__change_callback'
+HOTSWAP_CALLBACK_NAMESPACE = get_namespace('__change_callbacks')
 HOT_SWAPPABLE_SETTINGS = ('filters', 'excludeports', 'includeports')
 
 
 @never_crash
 def _forward_config_change(queue: SimpleQueue, config_data: dict):
     queue.put(config_data)
+
+
+def _non_hotswap_settings(config_data: dict) -> dict:
+    return {
+        k: v for k, v in config_data.items()
+        if k not in HOT_SWAPPABLE_SETTINGS
+    }
 
 
 def parse_config(config_file: str, watch_config: bool = False):
@@ -38,24 +46,23 @@ def parse_config(config_file: str, watch_config: bool = False):
         probe_config = config_data[key]
         config_namespace = get_namespace(key)
         current_values = config_namespace.get_config_values().copy()
-        if HOTSWAP_CALLBACK_FIELD not in current_values:
+        if key not in HOTSWAP_CALLBACK_NAMESPACE:
             # First time loading
-            current_values[HOTSWAP_CALLBACK_FIELD] = partial(
-                _forward_config_change, SimpleQueue(),
-            ) if watch_config else None
-        elif watch_config and any(
-            current_values.get(field) != probe_config.get(field)
-            for field in HOT_SWAPPABLE_SETTINGS
-        ):
-            # Checking if any of the changes can cause an hotswap (and then triggering it)
-            current_values[HOTSWAP_CALLBACK_FIELD](probe_config)
+            callback_method = partial(_forward_config_change, SimpleQueue()) if watch_config else None
+            DictConfiguration({key: callback_method}, namespace=HOTSWAP_CALLBACK_NAMESPACE.name)
+        elif watch_config:
+            is_different = probe_config != current_values
+            if is_different and _non_hotswap_settings(probe_config) != _non_hotswap_settings(current_values):
+                # Non hot-swappable setting changed -> restart
+                reset_config_state()
+                self_restart()
+                return
+            elif is_different:
+                # Only hot-swappable settings changed, trigger proble filters reload
+                HOTSWAP_CALLBACK_NAMESPACE[key](probe_config)
         # staticconf does clear namespaces before reloads, so we do it ourselves
         config_namespace.clear()
-        DictConfiguration(
-            {**probe_config, HOTSWAP_CALLBACK_FIELD: current_values[HOTSWAP_CALLBACK_FIELD]},
-            namespace=key,
-            flatten=False,
-        )
+        DictConfiguration(probe_config, namespace=key, flatten=False)
 
 
 def setup_config(
@@ -87,8 +94,14 @@ def enumerate_probe_configs() -> Generator[Tuple[str, dict, Optional[SimpleQueue
     :return: tuple of probe name, configuration data, and optionally the queue for change notifications
     """
     for namespace in get_namespaces_from_names(None, all_names=True):
-        if namespace.name != DEFAULT_NAMESPACE:
+        if namespace.name not in (DEFAULT_NAMESPACE, HOTSWAP_CALLBACK_NAMESPACE.name):
             curr_values = namespace.get_config_values().copy()
-            change_callback = curr_values.pop(HOTSWAP_CALLBACK_FIELD, None)
+            change_callback = HOTSWAP_CALLBACK_NAMESPACE.get(namespace.name, default=None)
             change_queue = change_callback.args[0] if change_callback else None
             yield namespace.name, curr_values, change_queue
+
+
+def reset_config_state():
+    """ Reset all configuration namespaces """
+    for namespace in get_namespaces_from_names(None, all_names=True):
+        namespace.clear()
