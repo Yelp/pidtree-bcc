@@ -4,6 +4,7 @@ import inspect
 import ipaddress
 import logging
 import os
+import signal
 import socket
 import struct
 import sys
@@ -138,3 +139,8 @@ def get_network_namespace(pid: int = None) -> int:
         return int(ns_link.strip()[5:-1])
     except Exception:
         return None
+
+
+def self_restart():
+    """ Causes pidtree-bcc to restart itself """
+    os.kill(os.getpid(), signal.SIGHUP)

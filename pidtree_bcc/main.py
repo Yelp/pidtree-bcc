@@ -19,12 +19,26 @@ from staticconf.config import ConfigurationWatcher
 from pidtree_bcc import __version__
 from pidtree_bcc.config import setup_config
 from pidtree_bcc.probes import load_probes
+from pidtree_bcc.utils import self_restart
 from pidtree_bcc.utils import smart_open
 
 
 EXIT_CODE = 0
+MAX_RESTARTS = 100
 HEALTH_CHECK_PERIOD_DEFAULT = 60  # seconds
-HANDLED_SIGNALS = (signal.SIGINT, signal.SIGTERM)
+HANDLED_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+
+
+class RestartSignal(BaseException):
+    pass
+
+
+class StopFlagWrapper:
+    def __init__(self):
+        self.do_stop = False
+
+    def stop(self):
+        self.do_stop = True
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,7 +63,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         '-w', '--watch-config', action='store_true', default=False,
-        help='Enable configuration file watch and hot-swapping for probe network filters',
+        help=(
+            'Enable configuration file watch and hot-swapping for probe network filters.'
+            'When a non-hot-swappable setting is changed, pidtree-bcc will restart itself.'
+        ),
     )
     parser.add_argument(
         '--health-check-period', type=int, default=HEALTH_CHECK_PERIOD_DEFAULT,
@@ -87,9 +104,12 @@ def termination_handler(probe_workers: List[Process], signum: int, frame: Any):
     :param int signum: signal integer code
     :param Any frame: signal stack frame
     """
-    logging.warning('Caught termination signal, shutting off probes and exiting')
+    msg_info = ('restart', 'restarting') if signum == signal.SIGHUP else ('termination', 'exiting')
+    logging.warning('Caught {} signal, shutting off probes and {}'.format(*msg_info))
     for worker in probe_workers:
         worker.terminate()
+    if signum == signal.SIGHUP:
+        raise RestartSignal()
     sys.exit(EXIT_CODE)
 
 
@@ -109,6 +129,7 @@ def deregister_signals(func: Callable):
 def health_and_config_watchdog(
     probe_workers: List[Process],
     output_fh: TextIO,
+    stop_flag: StopFlagWrapper,
     config_watcher: ConfigurationWatcher = None,
     check_period: int = HEALTH_CHECK_PERIOD_DEFAULT,
 ):
@@ -124,6 +145,8 @@ def health_and_config_watchdog(
     fs_poller.register(output_fh, select.POLLERR)
     while True:
         time.sleep(check_period)
+        if stop_flag.do_stop:
+            break
         bad_fds = fs_poller.poll(0)
         if not all(worker.is_alive() for worker in probe_workers) or bad_fds:
             EXIT_CODE = 1
@@ -132,7 +155,11 @@ def health_and_config_watchdog(
             os.kill(os.getpid(), signal.SIGTERM)
             break
         if config_watcher:
-            config_watcher.reload_if_changed()
+            try:
+                config_watcher.reload_if_changed()
+            except Exception as e:
+                logging.warning('Issue encountered in checking config changes, restarting: {}'.format(e))
+                self_restart()
 
 
 def main(args: argparse.Namespace):
@@ -169,9 +196,10 @@ def main(args: argparse.Namespace):
     for probe in probes.values():
         probe_workers.append(Process(target=deregister_signals(probe.start_polling)))
         probe_workers[-1].start()
+    stop_wrapper = StopFlagWrapper()
     watchdog_thread = Thread(
         target=health_and_config_watchdog,
-        args=(probe_workers, out, config_watcher, args.health_check_period),
+        args=(probe_workers, out, stop_wrapper, config_watcher, args.health_check_period),
         daemon=True,
     )
     watchdog_thread.start()
@@ -179,6 +207,9 @@ def main(args: argparse.Namespace):
         while True:
             print(output_queue.get(), file=out)
             out.flush()
+    except RestartSignal:
+        stop_wrapper.stop()
+        raise
     except Exception as e:
         # Terminate everything if something goes wrong
         EXIT_CODE = 1
@@ -189,4 +220,11 @@ def main(args: argparse.Namespace):
 
 
 if __name__ == '__main__':
-    main(parse_args())
+    restart_attempts = 0
+    while restart_attempts < MAX_RESTARTS:
+        try:
+            main(parse_args())
+            break
+        except RestartSignal:
+            restart_attempts += 1
+            pass

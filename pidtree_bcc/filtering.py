@@ -80,6 +80,19 @@ class CFilterKey(ComparableCtStructure):
         ('data', ctypes.c_uint32),
     ]
 
+    @classmethod
+    def from_network_definition(cls, netmask: str, ip: str):
+        """ Normalize data according to prefix length to avoid equivalent keys
+        with different representations.
+
+        :param str netmask: network mask
+        :param str ip: network ip
+        """
+        data = ip_to_int(ip)
+        bitmask = ip_to_int(netmask)
+        prefixlen = netmask_to_prefixlen(netmask)
+        return cls(prefixlen=prefixlen, data=data & bitmask)
+
 
 class CFilterValue(ComparableCtStructure):
     range_array_t = create_comparable_array_type(NET_FILTER_MAX_PORT_RANGES, CPortRange)
@@ -127,9 +140,9 @@ def load_filters_into_map(filters: List[dict], ebpf_map: Any, do_diff: bool = Fa
         if do_diff else [],
     )
     for entry in filters:
-        map_key = CFilterKey(
-            prefixlen=netmask_to_prefixlen(entry['network_mask']),
-            data=ip_to_int(entry['network']),
+        map_key = CFilterKey.from_network_definition(
+            netmask=entry['network_mask'],
+            ip=entry['network'],
         )
         if entry.get('except_ports'):
             mode = PortFilterMode.exclude

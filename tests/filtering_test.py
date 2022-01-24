@@ -59,16 +59,16 @@ def test_filter_ip_include_port(net_filtering):
 def test_load_filters_into_map():
     mock_filters = [
         {
-            'network': '127.0.0.1',
+            'network': '127.0.0.0',
             'network_mask': '255.0.0.0',
         },
         {
-            'network': '10.0.0.1',
+            'network': '10.0.0.0',
             'network_mask': '255.0.0.0',
             'except_ports': [123, 456],
         },
         {
-            'network': '192.168.0.1',
+            'network': '192.168.0.0',
             'network_mask': '255.255.0.0',
             'include_ports': ['100-200'],
         },
@@ -76,13 +76,13 @@ def test_load_filters_into_map():
     res_map = {}
     load_filters_into_map(mock_filters, res_map)
     assert res_map == {
-        CFilterKey(prefixlen=8, data=16777343): CFilterValue(mode=0, range_size=0),
-        CFilterKey(prefixlen=8, data=16777226): CFilterValue(
+        CFilterKey(prefixlen=8, data=127): CFilterValue(mode=0, range_size=0),
+        CFilterKey(prefixlen=8, data=10): CFilterValue(
             mode=1,
             range_size=2,
             ranges=CFilterValue.range_array_t(CPortRange(123, 123), CPortRange(456, 456)),
         ),
-        CFilterKey(prefixlen=16, data=16820416): CFilterValue(
+        CFilterKey(prefixlen=16, data=43200): CFilterValue(
             mode=2, range_size=1, ranges=CFilterValue.range_array_t(CPortRange(100, 200)),
         ),
     }
@@ -91,20 +91,20 @@ def test_load_filters_into_map():
 def test_load_filters_into_map_diff():
     mock_filters = [
         {
-            'network': '127.0.0.1',
+            'network': '127.0.0.0',
             'network_mask': '255.0.0.0',
         },
         {
-            'network': '10.0.0.1',
+            'network': '10.0.0.0',
             'network_mask': '255.0.0.0',
             'except_ports': [123, 456],
         },
     ]
-    res_map = {CFilterKey(prefixlen=8, data=16777343): 'foo', CFilterKey(prefixlen=8, data=16777344): 'bar'}
+    res_map = {CFilterKey(prefixlen=8, data=127): 'foo', CFilterKey(prefixlen=16, data=43200): 'bar'}
     load_filters_into_map(mock_filters, res_map, True)
     assert res_map == {
-        CFilterKey(prefixlen=8, data=16777343): CFilterValue(mode=0, range_size=0),
-        CFilterKey(prefixlen=8, data=16777226): CFilterValue(
+        CFilterKey(prefixlen=8, data=127): CFilterValue(mode=0, range_size=0),
+        CFilterKey(prefixlen=8, data=10): CFilterValue(
             mode=1,
             range_size=2,
             ranges=CFilterValue.range_array_t(CPortRange(123, 123), CPortRange(456, 456)),
@@ -147,3 +147,10 @@ def test_port_range_mapper():
     assert list(port_range_mapper('22-80')) == list(range(22, 81))
     assert list(port_range_mapper('0-10')) == list(range(1, 11))
     assert list(port_range_mapper('100-100000000')) == list(range(100, 65535))
+
+
+def test_lpm_trie_key():
+    assert (
+        CFilterKey.from_network_definition('255.255.0.0', '192.168.0.0')
+        == CFilterKey.from_network_definition('255.255.0.0', '192.168.2.3')
+    )
