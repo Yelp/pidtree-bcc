@@ -1,3 +1,10 @@
+pidtree-bcc (2.0.0~alpha4) unstable; urgency=medium
+
+  * Fix swapping of equilavent net-filter keys
+  * Auto-restart when config hot-swap is not possible
+
+ -- Matteo Piano <mpiano@yelp.com>  Mon, 24 Jan 2022 08:53:18 -0800
+
 pidtree-bcc (2.0.0~alpha3) unstable; urgency=medium
 
   * Allow hot-swapping network filters when configuration changes
