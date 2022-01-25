@@ -5,6 +5,7 @@ import os.path
 import re
 from datetime import datetime
 from multiprocessing import SimpleQueue
+from threading import Lock
 from threading import Thread
 from typing import Any
 from typing import Mapping
@@ -32,10 +33,10 @@ class BPFProbe:
     In either case the program text will be processed in Jinja templating.
     """
 
+    # SIDECARS
     # List of (function, args) tuples to run in parallel with the probes as "sidecars"
     # No health monitoring is performed on these after launch so they are expect to be
     # stable or self-healing.
-    SIDECARS = []
 
     # To be populated by `load_probes`
     EXTRA_PLUGIN_PATH = None
@@ -66,6 +67,7 @@ class BPFProbe:
                                          Set to <= 0 to disable.
         :param SimpleQueue config_change_queue: queue for passing configuration changes
         """
+        self.SIDECARS = []
         probe_config = probe_config if probe_config else {}
         self.output_queue = output_queue
         self.validate_config(probe_config)
@@ -85,6 +87,7 @@ class BPFProbe:
         self.lost_event_telemetry = lost_event_telemetry
         self.lost_event_timer = lost_event_telemetry
         self.lost_event_count = 0
+        self.net_filter_mutex = Lock()
         if self.USES_DYNAMIC_FILTERS and config_change_queue:
             self.SIDECARS.append((self._poll_config_changes, (config_change_queue,)))
 
@@ -176,9 +179,10 @@ class BPFProbe:
 
         :param bool is_init: Indicate this is the first time loading
         """
-        logging.info('[{}] {}oading filters into BPF maps'.format(self.probe_name, 'L' if is_init else 'Rel'))
-        load_filters_into_map(self.net_filters, self.bpf[self.NET_FILTER_MAP_NAME], not is_init)
-        load_port_filters_into_map(*self.global_filters, self.bpf[self.PORT_FILTER_MAP_NAME], not is_init)
+        with self.net_filter_mutex:
+            logging.info('[{}] {}oading filters into BPF maps'.format(self.probe_name, 'L' if is_init else 'Rel'))
+            load_filters_into_map(self.net_filters, self.bpf[self.NET_FILTER_MAP_NAME], not is_init)
+            load_port_filters_into_map(*self.global_filters, self.bpf[self.PORT_FILTER_MAP_NAME], not is_init)
 
     def start_polling(self):
         """ Start infinite loop polling BPF events """
