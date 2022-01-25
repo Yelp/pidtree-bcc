@@ -2,10 +2,13 @@ import logging
 from functools import partial
 from multiprocessing import SimpleQueue
 from typing import Generator
+from typing import Iterable
 from typing import Optional
 from typing import Tuple
 
+import staticconf.config
 import yaml
+from staticconf.config import ConfigNamespace
 from staticconf.config import ConfigurationWatcher
 from staticconf.config import DEFAULT as DEFAULT_NAMESPACE
 from staticconf.config import get_namespace
@@ -32,6 +35,28 @@ def _non_hotswap_settings(config_data: dict) -> dict:
     }
 
 
+def _get_probe_namespaces() -> Generator[ConfigNamespace, None, None]:
+    """ Enumerate probe configuration namespaces """
+    for namespace in get_namespaces_from_names(None, all_names=True):
+        if namespace.name not in (DEFAULT_NAMESPACE, HOTSWAP_CALLBACK_NAMESPACE.name):
+            yield namespace
+
+
+def _clear_and_restart():
+    """ Clear staticconf namespaces and restart """
+    reset_config_state()
+    self_restart()
+
+
+def _drop_namespaces(names: Iterable[str]):
+    """ Deletes configuration namespaces from staticconf
+
+    :param Iterable[str] names: namespaces to drop
+    """
+    for name in names:
+        staticconf.config.configuration_namespaces.pop(name, None)
+
+
 def parse_config(config_file: str, watch_config: bool = False):
     """ Parses yaml config file (if indicated)
 
@@ -40,9 +65,13 @@ def parse_config(config_file: str, watch_config: bool = False):
     """
     with open(config_file) as f:
         config_data = yaml.safe_load(f)
-    for key in config_data:
-        if key.startswith('_'):
-            continue
+    config_probe_names = {key for key in config_data if not key.startswith('_')}
+    current_probe_names = {ns.name for ns in _get_probe_namespaces()}
+    if watch_config and current_probe_names and config_probe_names != current_probe_names:
+        # probes added or removed, triggering restart
+        _drop_namespaces(current_probe_names - config_probe_names)
+        return _clear_and_restart()
+    for key in config_probe_names:
         probe_config = config_data[key]
         config_namespace = get_namespace(key)
         current_values = config_namespace.get_config_values().copy()
@@ -54,9 +83,7 @@ def parse_config(config_file: str, watch_config: bool = False):
             is_different = probe_config != current_values
             if is_different and _non_hotswap_settings(probe_config) != _non_hotswap_settings(current_values):
                 # Non hot-swappable setting changed -> restart
-                reset_config_state()
-                self_restart()
-                return
+                return _clear_and_restart()
             elif is_different:
                 # Only hot-swappable settings changed, trigger proble filters reload
                 HOTSWAP_CALLBACK_NAMESPACE[key](probe_config)
@@ -93,12 +120,11 @@ def enumerate_probe_configs() -> Generator[Tuple[str, dict, Optional[SimpleQueue
 
     :return: tuple of probe name, configuration data, and optionally the queue for change notifications
     """
-    for namespace in get_namespaces_from_names(None, all_names=True):
-        if namespace.name not in (DEFAULT_NAMESPACE, HOTSWAP_CALLBACK_NAMESPACE.name):
-            curr_values = namespace.get_config_values().copy()
-            change_callback = HOTSWAP_CALLBACK_NAMESPACE.get(namespace.name, default=None)
-            change_queue = change_callback.args[0] if change_callback else None
-            yield namespace.name, curr_values, change_queue
+    for namespace in _get_probe_namespaces():
+        curr_values = namespace.get_config_values().copy()
+        change_callback = HOTSWAP_CALLBACK_NAMESPACE.get(namespace.name, default=None)
+        change_queue = change_callback.args[0] if change_callback else None
+        yield namespace.name, curr_values, change_queue
 
 
 def reset_config_state():
