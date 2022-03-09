@@ -6,5 +6,5 @@ Build-Depends: dh-virtualenv
 
 Package: pidtree-bcc
 Architecture: amd64
-Depends: python3, python3-bcc
+Depends: ${pythonRuntime:Depends}, ${pythonBCC:Depends}
 Description: eBPF based intrusion detection and audit logging

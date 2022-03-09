@@ -8,7 +8,8 @@ EXTRA_DOCKER_ARGS ?=
 DOCKER_ARGS = $(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 DOCKER_BASE_IMAGE_TMPL ?= ubuntu:OS_RELEASE_PH
 HOST_OS_RELEASE = $(or $(shell cat /etc/lsb-release 2>/dev/null | grep -Po '(?<=CODENAME=)(.+)'), bionic)
-SUPPORTED_UBUNTU_RELEASES = xenial bionic focal
+SUPPORTED_UBUNTU_RELEASES = bionic focal jammy
+UPSTREAM_BCC_RELEASES = jammy
 VERSION_FILE = $(PWD)/pidtree_bcc/__init__.py
 EDITOR ?= vi
 
@@ -20,7 +21,7 @@ venv: requirements.txt requirements-dev.txt
 install-hooks: venv
 	venv/bin/pre-commit install -f --install-hooks
 
-cook-image: clean-cache docker-base-$(HOST_OS_RELEASE)
+cook-image: clean-cache docker-bcc-base-$(HOST_OS_RELEASE)
 	docker build -t pidtree-bcc --build-arg OS_RELEASE=$(HOST_OS_RELEASE) .
 
 docker-run: cook-image
@@ -44,7 +45,7 @@ testhosts:
 docker-run-testhosts: testhosts
 	make EXTRA_DOCKER_ARGS="-v $(CURDIR)/testhosts:/etc/hosts:ro" docker-run
 
-itest: clean-cache docker-base-$(HOST_OS_RELEASE)
+itest: clean-cache docker-bcc-base-$(HOST_OS_RELEASE)
 	./itest/itest_generic.sh docker
 	./itest/itest_sourceipmap.sh
 	./itest/itest_autoreload.sh
@@ -53,7 +54,14 @@ docker-base-%: Dockerfile.base
 	$(eval dollar_star := $(subst ubuntu_,,$*))
 	docker build -t pidtree-docker-base-$(dollar_star) --build-arg BASE_IMAGE=$(subst OS_RELEASE_PH,$(dollar_star),$(DOCKER_BASE_IMAGE_TMPL)) -f Dockerfile.base .
 
-itest_%: clean-cache docker-base-%
+docker-bcc-base-%: docker-base-%
+	$(eval dollar_star := $(subst ubuntu_,,$*))
+	docker build -t pidtree-docker-base-bcc-$(dollar_star) \
+		--build-arg OS_RELEASE=$(dollar_star) \
+		--build-arg BCC_TOOLS_SOURCE=$(if $(findstring $(dollar_star),$(UPSTREAM_BCC_RELEASES)),upstream,source) \
+		-f Dockerfile.bcc .
+
+itest_%: clean-cache docker-bcc-base-%
 	./itest/itest_generic.sh $*
 
 test: clean-cache

@@ -1,0 +1,4 @@
+coverage<5.0  # https://github.com/nedbat/coveragepy/issues/703
+pre-commit<2.0.0
+pytest
+requirements-tools

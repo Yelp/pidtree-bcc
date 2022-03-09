@@ -12,7 +12,11 @@ function setup {
     echo "deb http://archive.ubuntu.com/ubuntu/ ${host_release}-updates main" >> /etc/apt/sources.list.d/forwardports.list
     echo "deb http://archive.ubuntu.com/ubuntu/ ${host_release}-security main" >> /etc/apt/sources.list.d/forwardports.list
   fi
-  apt-get update
+  missing_gpg="$(apt-get update | grep 'NO_PUBKEY' | head -1)"
+  if [[ "$missing_gpg" != '' ]]; then
+    apt-key adv --recv-keys --keyserver keyserver.ubuntu.com $(echo "$missing_gpg" | grep -Eo '[^ ]+$')
+    apt-get update
+  fi
   apt-get -y install linux-headers-$(uname -r)
   if [ -f /etc/apt/sources.list.d/forwardports.list ]; then
     rm /etc/apt/sources.list.d/forwardports.list
@@ -20,7 +24,6 @@ function setup {
   apt-get update
   apt-get -y install /work/dist/*.deb
 }
-
 function run {
   mount -t debugfs debugfs /sys/kernel/debug
   pidtree-bcc --help

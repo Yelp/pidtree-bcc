@@ -1,5 +1,7 @@
-Jinja2
-psutil
-PyStaticConfiguration
-pyyaml
+Jinja2==3.0.3
+MarkupSafe==2.0.1
+psutil==5.9.0
+PyStaticConfiguration==0.10.5
+pyyaml==5.4.1
+six==1.16.0
 zipp<3.0.0; python_version<'3.6'
