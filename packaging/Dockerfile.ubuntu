@@ -22,6 +22,13 @@ RUN     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install \
 
 WORKDIR /work
 
+# we need python3.9 on jammy (and backpinning system level six
+# forces virtualenv to reinstall a local copy when packaging)
+RUN     if grep jammy /etc/lsb-release; then \
+            DEBIAN_FRONTEND=noninteractive apt-get -y install python3.9; \
+            pip3 install --force-reinstall six==1.15.0; \
+        fi
+
 # python3 installs python3.5 on xenial, and with pip 21.0 everything got broken
 # to the point that virtualenvs fail to be created. So we update virtualenv to a
 # new enough version allowing us to pin pip to a old enough version.
