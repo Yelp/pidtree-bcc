@@ -1,0 +1,49 @@
+ARG     OS_RELEASE=bionic
+FROM    pidtree-docker-base-${OS_RELEASE} as builder
+ARG     BCC_TOOLS_SOURCE=source
+ARG     BCC_VERSION=0.19.0
+
+RUN     if [ $BCC_TOOLS_SOURCE = 'source' ]; then \
+          apt-get update \
+          && DEBIAN_FRONTEND=noninteractive apt-get -y install pbuilder aptitude git \
+          && apt-get clean; \
+        fi
+
+# Clone source code
+RUN     if [ $BCC_TOOLS_SOURCE = 'source' ]; then \
+          git clone --single-branch --branch "v$BCC_VERSION" https://github.com/iovisor/bcc.git; \
+        fi
+WORKDIR /bcc
+
+# Fix release tagging
+RUN     if [ $BCC_TOOLS_SOURCE = 'source' ]; then \
+          sed -i 's/git describe --abbrev=0/git describe --tags --abbrev=0/' scripts/git-tag.sh; \
+        fi
+
+# Build debian packages
+RUN     if [ $BCC_TOOLS_SOURCE = 'source' ]; then \
+          /usr/lib/pbuilder/pbuilder-satisfydepends && ./scripts/build-deb.sh release; \
+        fi
+
+
+#----------------------------------------------------------------------------------------------
+FROM    pidtree-docker-base-${OS_RELEASE}
+ARG     BCC_TOOLS_SOURCE=source
+
+RUN     apt-get update \
+        && DEBIAN_FRONTEND=noninteractive apt-get -y install \
+            python3 \
+            python3-pip \
+        && apt-get clean
+
+# Install BCC toolchain
+RUN     mkdir /bcc
+# we include a file which is always present to make the COPY succeed
+COPY    --from=builder /etc/passwd /bcc/*.deb /bcc/
+RUN     if [ $BCC_TOOLS_SOURCE = 'source' ]; then apt-get -y install /bcc/libbcc_*.deb /bcc/python3-bcc*.deb; fi
+RUN     rm -rf /bcc
+
+RUN     if [ $BCC_TOOLS_SOURCE = 'upstream' ]; then \
+          DEBIAN_FRONTEND=noninteractive apt-get -y install python3-bpfcc \
+          && apt-get clean; \
+        fi
