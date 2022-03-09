@@ -18,6 +18,7 @@ RUN     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install \
             debhelper \
             devscripts \
             equivs \
+            libyaml-dev \
         && apt-get clean
 
 WORKDIR /work
