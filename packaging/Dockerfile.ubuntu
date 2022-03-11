@@ -31,7 +31,7 @@ RUN     if grep jammy /etc/lsb-release; then \
         fi
 
 # python3 installs python3.5 on xenial, and with pip 21.0 everything got broken
-# to the point that virtualenvs fail to be created. So we update virtualenv to a
+# to the point that virtualenvs fail to be created. So we update virtualenv to a
 # new enough version allowing us to pin pip to a old enough version.
 RUN     if grep xenial /etc/lsb-release; then \
             pip3 install -U 'virtualenv<=20.4.0' 'importlib-metadata<3.0.0' \

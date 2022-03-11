@@ -37,7 +37,8 @@ def _non_hotswap_settings(config_data: dict) -> dict:
 
 def _get_probe_namespaces() -> Generator[ConfigNamespace, None, None]:
     """ Enumerate probe configuration namespaces """
-    for namespace in get_namespaces_from_names(None, all_names=True):
+    # list() is used to avoid `RuntimeError: dictionary changed size during iteration`
+    for namespace in list(get_namespaces_from_names(None, all_names=True)):
         if namespace.name not in (DEFAULT_NAMESPACE, HOTSWAP_CALLBACK_NAMESPACE.name):
             yield namespace
 
