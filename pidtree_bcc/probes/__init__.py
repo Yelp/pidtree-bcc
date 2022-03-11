@@ -22,6 +22,7 @@ from pidtree_bcc.filtering import PortFilterMode
 from pidtree_bcc.plugins import load_plugins
 from pidtree_bcc.utils import find_subclass
 from pidtree_bcc.utils import never_crash
+from pidtree_bcc.utils import round_nearest_multiple
 
 
 class BPFProbe:
@@ -45,6 +46,8 @@ class BPFProbe:
     # (not via Jinja-templated if statements)
     USES_DYNAMIC_FILTERS = False
     NET_FILTER_MAP_NAME = 'net_filter_map'
+    NET_FILTER_MAP_SIZE_MAX = 4 * 1024
+    NET_FILTER_MAP_SIZE_SCALING = 512
     PORT_FILTER_MAP_NAME = 'port_filter_map'
 
     def __init__(
@@ -119,6 +122,10 @@ class BPFProbe:
                 template_config['NET_FILTER_MAP_NAME'] = self.NET_FILTER_MAP_NAME
                 template_config['PORT_FILTER_MAP_NAME'] = self.PORT_FILTER_MAP_NAME
                 template_config['NET_FILTER_MAX_PORT_RANGES'] = NET_FILTER_MAX_PORT_RANGES
+                template_config['NET_FILTER_MAP_SIZE'] = min(
+                    self.NET_FILTER_MAP_SIZE_MAX,
+                    round_nearest_multiple(len(self.net_filters), self.NET_FILTER_MAP_SIZE_SCALING, headroom=128),
+                )
         return template_config
 
     def _process_events(self, cpu: Any, data: Any, size: Any, from_bpf: bool = True):
