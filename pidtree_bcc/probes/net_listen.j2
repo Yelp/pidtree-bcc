@@ -12,7 +12,7 @@ struct listen_bind_t {
     u8  protocol;
 };
 
-{{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, PORT_FILTER_MAP_NAME, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
+{{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, PORT_FILTER_MAP_NAME, size=NET_FILTER_MAP_SIZE, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
 
 {{ utils.get_proto_func() }}
 

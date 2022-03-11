@@ -52,3 +52,8 @@ def test_netmask_to_prefixlen():
     assert utils.netmask_to_prefixlen('255.0.0.0') == 8
     with pytest.raises(ValueError):
         utils.netmask_to_prefixlen('1.1.1.1')
+
+
+def test_round_nearest_multiple():
+    assert utils.round_nearest_multiple(23, 10) == 30
+    assert utils.round_nearest_multiple(27, 10, 4) == 40

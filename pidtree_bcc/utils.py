@@ -144,3 +144,14 @@ def get_network_namespace(pid: int = None) -> int:
 def self_restart():
     """ Causes pidtree-bcc to restart itself """
     os.kill(os.getpid(), signal.SIGHUP)
+
+
+def round_nearest_multiple(value: int, factor: int, headroom: int = 0) -> int:
+    """ Round value to nearest multiple given a factor
+
+    :param int value: starting value
+    :param int factor: factor to use in finding multiple
+    :param int headroom: ensure this much difference between value and result
+    :return: rounded value
+    """
+    return factor * ((value + headroom) // factor + 1)
