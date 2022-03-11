@@ -1,3 +1,9 @@
+pidtree-bcc (2.0.2) unstable; urgency=medium
+
+  * Fix possible "dictionary change during iteration" bug
+
+ -- Matteo Piano <mpiano@yelp.com>  Fri, 11 Mar 2022 01:42:45 -0800
+
 pidtree-bcc (2.0.1) unstable; urgency=medium
 
   * Support for Ubuntu Jammy
