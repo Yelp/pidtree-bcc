@@ -1,5 +1,5 @@
-pip==18.1
+pip==21.3.1
+pip-tools==4.5.1
 setuptools==49.2.1
-venv-update==4.0.0
 virtualenv==20.6.0
 wheel==0.37.0

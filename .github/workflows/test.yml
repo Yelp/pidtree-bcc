@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        python-version: [3.6, 3.8, 3.9]
+        python-version: ['3.6', '3.8', '3.10']
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python ${{ matrix.python-version }}
@@ -18,7 +18,7 @@ jobs:
       - name: Install tox
         run: |
           sudo pip3 install -r requirements-bootstrap.txt
-          sudo pip3 install tox tox-pip-extensions tox-gh-actions
+          sudo pip3 install tox tox-gh-actions
       - name: Test with tox
         run: tox
   itests:
@@ -30,6 +30,6 @@ jobs:
           sudo apt-get update && sudo apt-get install -y netcat-traditional
           sudo update-alternatives --set nc /bin/nc.traditional
           sudo pip3 install -r requirements-bootstrap.txt
-          sudo pip3 install tox tox-pip-extensions
+          sudo pip3 install tox
       - name: Run all tests
         run: sudo make test-all
