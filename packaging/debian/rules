@@ -4,11 +4,8 @@
 ifeq ($(shell (. /etc/lsb-release && dpkg --compare-versions $$DISTRIB_RELEASE "ge" "22.04" && echo yes || echo no)),yes)
     # upstream BCC libraries are new enough on jammy (0.18 at the time of writing), and we are not building them from source anymore
     python_bcc = python3-bpfcc
-    # default python3 package has compatibiltiy issues
-    python_runtime = python3.9
 else
     python_bcc = python3-bcc
-    python_runtime = python3
 endif
 
 # for some $reason this prevents virtualenv to spit a bunch of errors
@@ -20,7 +17,7 @@ export DH_VIRTUALENV_INSTALL_ROOT = /opt/venvs
 	dh $@ --with python-virtualenv
 
 override_dh_gencontrol:
-	dh_gencontrol -- -VpythonBCC:Depends="$(python_bcc)" -VpythonRuntime:Depends="$(python_runtime)"
+	dh_gencontrol -- -VpythonBCC:Depends="$(python_bcc)"
 
 override_dh_virtualenv:
-	dh_virtualenv --python $(python_runtime) --use-system-packages --no-test --preinstall=-rrequirements-bootstrap.txt
+	dh_virtualenv --python python3 --use-system-packages --no-test --preinstall=-rrequirements-bootstrap.txt
