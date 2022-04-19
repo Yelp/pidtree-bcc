@@ -1,3 +1,9 @@
+pidtree-bcc (2.1.1) unstable; urgency=medium
+
+  * Fix build for Ubuntu Jammy
+
+ -- Matteo Piano <mpiano@yelp.com>  Tue, 19 Apr 2022 08:03:08 -0700
+
 pidtree-bcc (2.1.0) unstable; urgency=medium
 
   * Dynamically set initial size of net filter maps
