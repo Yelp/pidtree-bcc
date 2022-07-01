@@ -138,3 +138,19 @@ static inline bool is_port_globally_filtered(u16 port) {
     );
 }
 {%- endmacro %}
+
+{% macro patch_buggy_headers(do_patch=False) -%}
+{% if do_patch -%}
+// This is just a work around to some issues with latest kernels:
+// - https://github.com/iovisor/bcc/issues/3366
+// - https://github.com/iovisor/bcc/issues/3993
+struct bpf_timer {
+    __u64 :64;
+    __u64 :64;
+};
+enum {
+    BPF_F_BROADCAST       = (1ULL << 3),
+    BPF_F_EXCLUDE_INGRESS = (1ULL << 4),
+};
+{%- endif %}
+{%- endmacro %}
