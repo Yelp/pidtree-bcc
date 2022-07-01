@@ -1,3 +1,9 @@
+pidtree-bcc (2.2.0) unstable; urgency=medium
+
+  * Actual support for Ubuntu Jammy
+
+ -- Matteo Piano <mpiano@yelp.com>  Fri, 01 Jul 2022 03:18:11 -0700
+
 pidtree-bcc (2.1.1) unstable; urgency=medium
 
   * Fix build for Ubuntu Jammy
