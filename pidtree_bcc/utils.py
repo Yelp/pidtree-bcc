@@ -31,7 +31,7 @@ def crawl_process_tree(pid: int) -> List[dict]:
         result.append(
             {
                 'pid': proc.pid,
-                'cmdline': ' '.join(proc.cmdline()),
+                'cmdline': ' '.join(proc.cmdline()).strip(),
                 'username': proc.username(),
             },
         )
