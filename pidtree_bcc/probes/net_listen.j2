@@ -1,4 +1,5 @@
 {%- import 'utils.j2' as utils -%}
+{{ utils.patch_buggy_headers(PATCH_BUGGY_HEADERS) }}
 #include <net/sock.h>
 #include <bcc/proto.h>
 

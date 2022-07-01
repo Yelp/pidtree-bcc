@@ -2,8 +2,10 @@ import inspect
 import json
 import logging
 import os.path
+import platform
 import re
 from datetime import datetime
+from functools import lru_cache
 from multiprocessing import SimpleQueue
 from threading import Lock
 from threading import Thread
@@ -111,6 +113,7 @@ class BPFProbe:
                 template_config = {k: template_config[k] for k in self.TEMPLATE_VARS}
             else:
                 template_config.pop('plugins', None)
+            template_config['PATCH_BUGGY_HEADERS'] = self._has_buggy_headers()
         if self.USES_DYNAMIC_FILTERS:
             self.net_filters = template_config['filters']
             self.global_filters = (
@@ -127,6 +130,19 @@ class BPFProbe:
                     round_nearest_multiple(len(self.net_filters), self.NET_FILTER_MAP_SIZE_SCALING, headroom=128),
                 )
         return template_config
+
+    @lru_cache(maxsize=1)
+    def _has_buggy_headers(self) -> bool:
+        """ At the time of writing, compiling eBPF on new kernels/OS is
+        a bit buggy and we need to work around that:
+        - https://github.com/iovisor/bcc/issues/3366
+        - https://github.com/iovisor/bcc/issues/3993
+
+        TODO: keep an eye on things, hopefully they eventually get properly patched
+        """
+        kernel_version = platform.uname().release
+        kmajor, kminor = map(int, kernel_version.split('.', 2)[:2])
+        return (kmajor == 5 and kminor >= 15) or kmajor > 5
 
     def _process_events(self, cpu: Any, data: Any, size: Any, from_bpf: bool = True):
         """ BPF event callback
@@ -195,7 +211,10 @@ class BPFProbe:
         """ Start infinite loop polling BPF events """
         for func, args in self.SIDECARS:
             Thread(target=func, args=args, daemon=True).start()
-        self.bpf = BPF(text=self.expanded_bpf_text)
+        self.bpf = BPF(
+            text=self.expanded_bpf_text,
+            cflags=['-Wno-macro-redefined'] if self._has_buggy_headers() else [],
+        )
         if self.lost_event_telemetry > 0:
             extra_args = {'lost_cb': self._lost_event_callback}
             poll_func = self._poll_and_check_lost
