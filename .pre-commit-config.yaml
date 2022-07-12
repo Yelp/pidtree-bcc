@@ -8,6 +8,7 @@ repos:
     -   id: check-executables-have-shebangs
     -   id: check-merge-conflict
     -   id: check-yaml
+        args: [--unsafe]  # needing this due to custom YAML syntax
     -   id: debug-statements
     -   id: double-quote-string-fixer
     -   id: name-tests-test

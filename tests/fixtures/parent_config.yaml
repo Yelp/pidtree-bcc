@@ -1,0 +1,4 @@
+---
+foo: !include child_config.yaml
+bar:
+  fizz: buzz

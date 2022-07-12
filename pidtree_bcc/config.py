@@ -3,6 +3,7 @@ from functools import partial
 from multiprocessing import SimpleQueue
 from typing import Generator
 from typing import Iterable
+from typing import List
 from typing import Optional
 from typing import Tuple
 
@@ -17,10 +18,13 @@ from staticconf.loader import DictConfiguration
 
 from pidtree_bcc.utils import never_crash
 from pidtree_bcc.utils import self_restart
+from pidtree_bcc.yaml_loader import FileIncludeLoader
 
 
 HOTSWAP_CALLBACK_NAMESPACE = get_namespace('__change_callbacks')
+LOADED_CONFIG_FILES_NAMESPACE = get_namespace('__loaded_configs')
 HOT_SWAPPABLE_SETTINGS = ('filters', 'excludeports', 'includeports')
+NON_PROBE_NAMESPACES = (DEFAULT_NAMESPACE, HOTSWAP_CALLBACK_NAMESPACE.name, LOADED_CONFIG_FILES_NAMESPACE.name)
 
 
 @never_crash
@@ -39,7 +43,7 @@ def _get_probe_namespaces() -> Generator[ConfigNamespace, None, None]:
     """ Enumerate probe configuration namespaces """
     # list() is used to avoid `RuntimeError: dictionary changed size during iteration`
     for namespace in list(get_namespaces_from_names(None, all_names=True)):
-        if namespace.name not in (DEFAULT_NAMESPACE, HOTSWAP_CALLBACK_NAMESPACE.name):
+        if namespace.name not in NON_PROBE_NAMESPACES:
             yield namespace
 
 
@@ -58,20 +62,28 @@ def _drop_namespaces(names: Iterable[str]):
         staticconf.config.configuration_namespaces.pop(name, None)
 
 
-def parse_config(config_file: str, watch_config: bool = False):
+def parse_config(config_file: str, watch_config: bool = False) -> List[str]:
     """ Parses yaml config file (if indicated)
 
     :param str config_file: config file path
     :param bool watch_config: perform necessary setup to enable configuration hot swaps
+    :return: list of all files loaded
     """
+    loader, included_files = FileIncludeLoader.get_loader_instance()
     with open(config_file) as f:
-        config_data = yaml.safe_load(f)
+        config_data = yaml.load(f, Loader=loader)
+    included_files = sorted({config_file, *included_files})
     config_probe_names = {key for key in config_data if not key.startswith('_')}
     current_probe_names = {ns.name for ns in _get_probe_namespaces()}
-    if watch_config and current_probe_names and config_probe_names != current_probe_names:
+    current_loaded_files = LOADED_CONFIG_FILES_NAMESPACE.get('files', default=None)
+    if watch_config and (
+        (current_probe_names and config_probe_names != current_probe_names)
+        or (current_loaded_files and current_loaded_files != included_files)
+    ):
         # probes added or removed, triggering restart
         _drop_namespaces(current_probe_names - config_probe_names)
-        return _clear_and_restart()
+        _clear_and_restart()
+        return included_files
     for key in config_probe_names:
         probe_config = config_data[key]
         config_namespace = get_namespace(key)
@@ -84,13 +96,16 @@ def parse_config(config_file: str, watch_config: bool = False):
             is_different = probe_config != current_values
             if is_different and _non_hotswap_settings(probe_config) != _non_hotswap_settings(current_values):
                 # Non hot-swappable setting changed -> restart
-                return _clear_and_restart()
+                _clear_and_restart()
+                break
             elif is_different:
                 # Only hot-swappable settings changed, trigger proble filters reload
                 HOTSWAP_CALLBACK_NAMESPACE[key](probe_config)
         # staticconf does clear namespaces before reloads, so we do it ourselves
         config_namespace.clear()
         DictConfiguration(probe_config, namespace=key, flatten=False)
+    DictConfiguration({'files': included_files}, namespace=LOADED_CONFIG_FILES_NAMESPACE.name)
+    return included_files
 
 
 def setup_config(
@@ -107,12 +122,12 @@ def setup_config(
     """
     logging.getLogger('staticconf.config').setLevel(logging.WARN)
     config_loader = partial(parse_config, config_file, watch_config)
+    filenames = config_loader()
     watcher = ConfigurationWatcher(
         config_loader=config_loader,
-        filenames=[config_file],
+        filenames=filenames,
         min_interval=min_watch_interval,
     ) if watch_config else None
-    config_loader()
     return watcher
 
 
