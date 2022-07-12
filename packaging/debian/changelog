@@ -1,3 +1,9 @@
+pidtree-bcc (2.3.0) unstable; urgency=medium
+
+  * Allow splitting config in multiple files
+
+ -- Matteo Piano <mpiano@yelp.com>  Tue, 12 Jul 2022 08:10:38 -0700
+
 pidtree-bcc (2.2.0) unstable; urgency=medium
 
   * Actual support for Ubuntu Jammy
