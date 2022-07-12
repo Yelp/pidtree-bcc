@@ -39,7 +39,8 @@ function test_output {
 }
 
 function write_config {
-    sed "s/<net_address>/$1/g" $TOPLEVEL/itest/config_autoreload.yml > $TOPLEVEL/itest/tmp/autoreload/config.yml
+    cp $TOPLEVEL/itest/config_autoreload.yml $TOPLEVEL/itest/tmp/autoreload/config.yml
+    sed "s/<net_address>/$1/g" $TOPLEVEL/itest/config_filters_autoreload.yml > $TOPLEVEL/itest/tmp/autoreload/filters.yml
 }
 
 trap cleanup INT EXIT
@@ -58,7 +59,7 @@ docker build -t pidtree-itest itest
 echo "Creating background pidtree-bcc container to catch traffic"
 write_config $DADDR
 docker run --name $CONTAINER_NAME --rm -d \
-    --rm --privileged --cap-add sys_admin --pid host \
+    --privileged --cap-add sys_admin --pid host \
     -v $TOPLEVEL/itest/tmp/autoreload:/work/config \
     -v $TOPLEVEL/$OUTPUT_NAME:/work/output \
     pidtree-itest -c /work/config/config.yml -f /work/output -w --health-check-period 1
