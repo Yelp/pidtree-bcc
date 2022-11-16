@@ -12,6 +12,7 @@ from threading import Thread
 from typing import Any
 from typing import Mapping
 
+from bcc import __version__ as bccversion
 from bcc import BPF
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
@@ -142,7 +143,8 @@ class BPFProbe:
         """
         kernel_version = platform.uname().release
         kmajor, kminor = map(int, kernel_version.split('.', 2)[:2])
-        return (kmajor == 5 and kminor >= 15) or kmajor > 5
+        _, bccminor, _ = map(int, bccversion.split('.'))
+        return bccminor < 23 and ((kmajor == 5 and kminor >= 15) or kmajor > 5)
 
     def _process_events(self, cpu: Any, data: Any, size: Any, from_bpf: bool = True):
         """ BPF event callback
