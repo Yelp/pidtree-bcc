@@ -152,5 +152,7 @@ enum {
     BPF_F_BROADCAST       = (1ULL << 3),
     BPF_F_EXCLUDE_INGRESS = (1ULL << 4),
 };
+// Missing header value in bcc <0.19.0 (Ubuntu Jammy comes with 0.18.0)
+#define BPF_PSEUDO_FUNC 4
 {%- endif %}
 {%- endmacro %}
