@@ -5,7 +5,7 @@ on:
 
 jobs:
   unit_test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ['3.6', '3.8', '3.10']
@@ -22,7 +22,7 @@ jobs:
       - name: Test with tox
         run: tox
   itests:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - name: Setup environment
