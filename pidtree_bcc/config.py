@@ -18,6 +18,7 @@ from staticconf.loader import DictConfiguration
 
 from pidtree_bcc.utils import never_crash
 from pidtree_bcc.utils import self_restart
+from pidtree_bcc.utils import StopFlagWrapper
 from pidtree_bcc.yaml_loader import FileIncludeLoader
 
 
@@ -62,14 +63,18 @@ def _drop_namespaces(names: Iterable[str]):
         staticconf.config.configuration_namespaces.pop(name, None)
 
 
-def parse_config(config_file: str, watch_config: bool = False) -> List[str]:
+def parse_config(
+    config_file: str,
+    watch_config: bool = False,
+    stop_flag: Optional[StopFlagWrapper] = None,
+) -> List[str]:
     """ Parses yaml config file (if indicated)
 
     :param str config_file: config file path
     :param bool watch_config: perform necessary setup to enable configuration hot swaps
     :return: list of all files loaded
     """
-    loader, included_files = FileIncludeLoader.get_loader_instance()
+    loader, included_files = FileIncludeLoader.get_loader_instance(stop_flag)
     with open(config_file) as f:
         config_data = yaml.load(f, Loader=loader)
     included_files = sorted({config_file, *included_files})
@@ -112,6 +117,7 @@ def setup_config(
     config_file: str,
     watch_config: bool = False,
     min_watch_interval: int = 60,
+    stop_flag: Optional[StopFlagWrapper] = None,
 ) -> Optional[ConfigurationWatcher]:
     """ Load and setup configuration file
 
@@ -121,7 +127,7 @@ def setup_config(
     :return: if `watch_config` is set, the configuration watcher object, None otherwise.
     """
     logging.getLogger('staticconf.config').setLevel(logging.WARN)
-    config_loader = partial(parse_config, config_file, watch_config)
+    config_loader = partial(parse_config, config_file, watch_config, stop_flag=stop_flag)
     filenames = config_loader()
     watcher = ConfigurationWatcher(
         config_loader=config_loader,
