@@ -21,6 +21,7 @@ from pidtree_bcc.config import setup_config
 from pidtree_bcc.probes import load_probes
 from pidtree_bcc.utils import self_restart
 from pidtree_bcc.utils import smart_open
+from pidtree_bcc.utils import StopFlagWrapper
 
 
 EXIT_CODE = 0
@@ -31,14 +32,6 @@ HANDLED_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
 
 class RestartSignal(BaseException):
     pass
-
-
-class StopFlagWrapper:
-    def __init__(self):
-        self.do_stop = False
-
-    def stop(self):
-        self.do_stop = True
 
 
 def parse_args() -> argparse.Namespace:
@@ -165,6 +158,7 @@ def health_and_config_watchdog(
 def main(args: argparse.Namespace):
     global EXIT_CODE
     probe_workers = []
+    stop_wrapper = StopFlagWrapper()
     logging.basicConfig(
         stream=sys.stderr,
         level=logging.INFO,
@@ -177,6 +171,7 @@ def main(args: argparse.Namespace):
         args.config,
         watch_config=args.watch_config,
         min_watch_interval=args.health_check_period,
+        stop_flag=stop_wrapper,
     )
     out = smart_open(args.output_file, mode='w')
     output_queue = SimpleQueue()
@@ -196,7 +191,6 @@ def main(args: argparse.Namespace):
     for probe in probes.values():
         probe_workers.append(Process(target=deregister_signals(probe.start_polling)))
         probe_workers[-1].start()
-    stop_wrapper = StopFlagWrapper()
     watchdog_thread = Thread(
         target=health_and_config_watchdog,
         args=(probe_workers, out, stop_wrapper, config_watcher, args.health_check_period),

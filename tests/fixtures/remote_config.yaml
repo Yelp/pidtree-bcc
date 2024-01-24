@@ -1,0 +1,4 @@
+---
+foo: !include https://raw.githubusercontent.com/Yelp/pidtree-bcc/master/tests/fixtures/child_config.yaml
+bar:
+  fizz: buzz

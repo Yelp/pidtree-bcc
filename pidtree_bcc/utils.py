@@ -155,3 +155,11 @@ def round_nearest_multiple(value: int, factor: int, headroom: int = 0) -> int:
     :return: rounded value
     """
     return factor * ((value + headroom) // factor + 1)
+
+
+class StopFlagWrapper:
+    def __init__(self):
+        self.do_stop = False
+
+    def stop(self):
+        self.do_stop = True
