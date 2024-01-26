@@ -65,7 +65,7 @@ class FileIncludeLoader(yaml.SafeLoader):
         """
         name = loader.construct_scalar(node)
         filepath = (
-            self.include_remote(name)
+            self.include_remote(name, self.stop_flag)
             if re.match(r'^https?://', name)
             else (
                 os.path.join(os.path.dirname(loader.name), name)
@@ -82,33 +82,37 @@ class FileIncludeLoader(yaml.SafeLoader):
             _, value, traceback = sys.exc_info()
             raise yaml.YAMLError(value).with_traceback(traceback)
 
-    def include_remote(self, url: str) -> str:
+    @classmethod
+    def include_remote(cls, url: str, stop_flag: Optional[StopFlagWrapper] = None) -> str:
         """ Load remote configuration data
 
         :param str url: resource url
         :return: local filepath where data is stored
         """
-        if self.remote_fetcher is None or not self.remote_fetcher.is_alive():
-            self.remote_fetcher_fence = Condition()
-            self.remote_fetcher_outdir = tempfile.mkdtemp(prefix='pidtree-bcc-conf')
-            self.remote_fetcher = Thread(
+        if cls.remote_fetcher is None or not cls.remote_fetcher.is_alive():
+            logging.info('Setting up remote configuration fetcher thread')
+            cls.remote_fetcher_fence = Condition()
+            cls.remote_fetcher_outdir = tempfile.mkdtemp(prefix='pidtree-bcc-conf')
+            cls.remote_fetcher = Thread(
                 target=fetch_remote_configurations,
                 args=(
-                    self.REMOTE_FETCH_INTERVAL_SECONDS, self.remote_fetcher_fence,
-                    self.remote_fetch_workload, self.stop_flag,
+                    cls.REMOTE_FETCH_INTERVAL_SECONDS,
+                    cls.remote_fetcher_fence,
+                    cls.remote_fetch_workload,
+                    stop_flag,
                 ),
                 daemon=True,
             )
-            self.remote_fetcher.start()
+            FileIncludeLoader.remote_fetcher.start()
         logging.info(f'Loading remote configuration from {url}')
         ready = Condition()
         url_sha = hashlib.sha256(url.encode()).hexdigest()
-        output_path = os.path.join(self.remote_fetcher_outdir, f'{url_sha}.yaml')
-        self.remote_fetch_workload[url] = (output_path, ready)
-        with self.remote_fetcher_fence:
-            self.remote_fetcher_fence.notify()
+        output_path = os.path.join(cls.remote_fetcher_outdir, f'{url_sha}.yaml')
+        cls.remote_fetch_workload[url] = (output_path, ready)
+        with cls.remote_fetcher_fence:
+            cls.remote_fetcher_fence.notify()
         with ready:
-            if not ready.wait(timeout=self.REMOTE_FETCH_MAX_WAIT_SECONDS):
+            if not ready.wait(timeout=cls.REMOTE_FETCH_MAX_WAIT_SECONDS):
                 raise ValueError(f'Failed to load configuration at {url}')
         return output_path
 
@@ -121,6 +125,15 @@ class FileIncludeLoader(yaml.SafeLoader):
         """
         included_files = []
         return partial(cls, included_files=included_files, stop_flag=stop_flag), included_files
+
+    @classmethod
+    def cleanup(cls):
+        """ Cleans eventual background configuration fetcher setup """
+        if cls.remote_fetcher_fence:
+            with cls.remote_fetcher_fence:
+                cls.remote_fetcher_fence.notify()
+            shutil.rmtree(cls.remote_fetcher_outdir, ignore_errors=True)
+        cls.remote_fetch_workload.clear()
 
 
 @never_crash
