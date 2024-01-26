@@ -22,6 +22,7 @@ from pidtree_bcc.probes import load_probes
 from pidtree_bcc.utils import self_restart
 from pidtree_bcc.utils import smart_open
 from pidtree_bcc.utils import StopFlagWrapper
+from pidtree_bcc.yaml_loader import FileIncludeLoader
 
 
 EXIT_CODE = 0
@@ -203,6 +204,7 @@ def main(args: argparse.Namespace):
             out.flush()
     except RestartSignal:
         stop_wrapper.stop()
+        FileIncludeLoader.cleanup()
         raise
     except Exception as e:
         # Terminate everything if something goes wrong

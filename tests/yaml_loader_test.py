@@ -37,6 +37,7 @@ def test_file_include_remote(mock_request, mock_tempfile, tmp_path):
         with open('tests/fixtures/remote_config.yaml') as f:
             data = yaml.load(f, Loader=loader)
     stop_flag.stop()
+    FileIncludeLoader.cleanup()
     assert data == {
         'foo': [1, {'a': 2, 'b': 3}, 4],
         'bar': {'fizz': 'buzz'},
@@ -47,3 +48,5 @@ def test_file_include_remote(mock_request, mock_tempfile, tmp_path):
     mock_request.urlopen.assert_called_once_with(
         'https://raw.githubusercontent.com/Yelp/pidtree-bcc/master/tests/fixtures/child_config.yaml',
     )
+    assert not FileIncludeLoader.remote_fetch_workload
+    assert not FileIncludeLoader.remote_fetcher.is_alive()
