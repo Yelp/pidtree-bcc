@@ -1,3 +1,9 @@
+pidtree-bcc (2.4.1) unstable; urgency=medium
+
+  * Fix shutdown behaviour of remote config fetcher
+
+ -- Matteo Piano <mpiano@yelp.com>  Fri, 26 Jan 2024 03:26:04 -0800
+
 pidtree-bcc (2.4.0) unstable; urgency=medium
 
   * Add option to fetch decoupled config from remote source
