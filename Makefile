@@ -7,9 +7,9 @@ FIFO = $(CURDIR)/pidtree-bcc.fifo
 EXTRA_DOCKER_ARGS ?=
 DOCKER_ARGS = $(EXTRA_DOCKER_ARGS) -v /etc/passwd:/etc/passwd:ro --privileged --cap-add sys_admin --pid host
 DOCKER_BASE_IMAGE_TMPL ?= ubuntu:OS_RELEASE_PH
-HOST_OS_RELEASE = $(or $(shell cat /etc/lsb-release 2>/dev/null | grep -Po '(?<=CODENAME=)(.+)'), bionic)
-SUPPORTED_UBUNTU_RELEASES = bionic focal jammy
-UPSTREAM_BCC_RELEASES = jammy
+HOST_OS_RELEASE = $(or $(shell cat /etc/lsb-release 2>/dev/null | grep -Po '(?<=CODENAME=)(.+)'), jammy)
+SUPPORTED_UBUNTU_RELEASES = bionic focal jammy noble
+UPSTREAM_BCC_RELEASES = jammy noble
 VERSION_FILE = $(PWD)/pidtree_bcc/__init__.py
 EDITOR ?= vi
 

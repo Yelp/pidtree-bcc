@@ -1,2 +1,2 @@
-ARG     BASE_IMAGE=ubuntu:bionic
+ARG     BASE_IMAGE=ubuntu:jammy
 FROM    ${BASE_IMAGE}

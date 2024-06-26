@@ -1,4 +1,4 @@
-ARG     OS_RELEASE=bionic
+ARG     OS_RELEASE=jammy
 FROM    pidtree-docker-base-${OS_RELEASE} as builder
 ARG     BCC_TOOLS_SOURCE=source
 ARG     BCC_VERSION=0.19.0
