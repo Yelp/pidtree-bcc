@@ -50,8 +50,8 @@ touch $TOPLEVEL/$OUTPUT_NAME
 if [ -f /etc/lsb-release ]; then
     source /etc/lsb-release
 else
-    echo "WARNING: Could not source /etc/lsb-release, tentatively creating bionic docker image"
-    DISTRIB_CODENAME=bionic
+    echo "WARNING: Could not source /etc/lsb-release, tentatively creating jammy docker image"
+    DISTRIB_CODENAME=jammy
 fi
 docker build -t pidtree-itest-base --build-arg OS_RELEASE=$DISTRIB_CODENAME .
 docker build -t pidtree-itest itest

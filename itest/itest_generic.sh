@@ -95,8 +95,8 @@ function main {
     if [ -f /etc/lsb-release ]; then
       source /etc/lsb-release
     else
-      echo "WARNING: Could not source /etc/lsb-release, tentatively creating bionic docker image"
-      DISTRIB_CODENAME=bionic
+      echo "WARNING: Could not source /etc/lsb-release, tentatively creating jammy docker image"
+      DISTRIB_CODENAME=jammy
     fi
     docker build -t pidtree-itest-base --build-arg OS_RELEASE=$DISTRIB_CODENAME .
     # Run the setup.sh install steps in the image so we don't hit timeouts

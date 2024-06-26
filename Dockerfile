@@ -1,4 +1,4 @@
-ARG     OS_RELEASE=bionic
+ARG     OS_RELEASE=jammy
 FROM    pidtree-docker-base-bcc-${OS_RELEASE}
 
 # Build python environment
