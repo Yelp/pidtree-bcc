@@ -125,7 +125,7 @@ function main {
         -v $TOPLEVEL/itest/dist/$1/:/work/dist \
         pidtree-itest-$1 /work/entrypoint_deb_package.sh run -c /work/config.yml -f /work/outfile
   else
-    echo "ERROR: '$@' is not a supported argument (see 'itest/itest.sh' for options)" >&2
+    echo "ERROR: '$@' is not a supported argument (see 'itest/itest_generic.sh' for options)" >&2
     exit 1
   fi
   echo "Sleeping $SPIN_UP_TIME seconds for pidtree-bcc to start"

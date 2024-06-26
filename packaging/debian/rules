@@ -8,6 +8,13 @@ else
     python_bcc = python3-bcc
 endif
 
+ifeq ($(shell (. /etc/lsb-release && dpkg --compare-versions $$DISTRIB_RELEASE "le" "18.04" && echo yes || echo no)),yes)
+    # bionic does not support newer pip/setuptools
+    requirements_bootstrap = -rrequirements-bootstrap-bionic.txt
+else
+    requirements_bootstrap = -rrequirements-bootstrap.txt
+endif
+
 # for some $reason this prevents virtualenv to spit a bunch of errors
 export VIRTUALENV_NO_PERIODIC_UPDATE = true
 
@@ -20,4 +27,4 @@ override_dh_gencontrol:
 	dh_gencontrol -- -VpythonBCC:Depends="$(python_bcc)"
 
 override_dh_virtualenv:
-	dh_virtualenv --python python3 --use-system-packages --no-test --preinstall=-rrequirements-bootstrap.txt
+	dh_virtualenv --python python3 --use-system-packages --no-test --preinstall=$(requirements_bootstrap)
