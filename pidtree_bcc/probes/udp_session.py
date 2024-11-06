@@ -20,6 +20,7 @@ class UDPSessionProbe(BPFProbe):
     CONFIG_DEFAULTS = {
         'ip_to_int': ip_to_int,
         'filters': [],
+        'container_labels': [],
         'includeports': [],
         'excludeports': [],
     }

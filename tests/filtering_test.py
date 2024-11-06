@@ -7,6 +7,7 @@ from pidtree_bcc.filtering import CFilterKey
 from pidtree_bcc.filtering import CFilterValue
 from pidtree_bcc.filtering import CPortRange
 from pidtree_bcc.filtering import load_filters_into_map
+from pidtree_bcc.filtering import load_intset_into_map
 from pidtree_bcc.filtering import load_port_filters_into_map
 from pidtree_bcc.filtering import NetFilter
 from pidtree_bcc.filtering import port_range_mapper
@@ -154,3 +155,30 @@ def test_lpm_trie_key():
         CFilterKey.from_network_definition('255.255.0.0', '192.168.0.0')
         == CFilterKey.from_network_definition('255.255.0.0', '192.168.2.3')
     )
+
+
+@pytest.mark.parametrize(
+    'intset,initial,expected,do_diff',
+    (
+        ({1, 2, 3}, {}, {1: 1, 2: 1, 3: 1}, False),
+        ({2, 3}, {1: 1}, {1: 1, 2: 1, 3: 1}, False),
+        ({2, 3}, {1: 1}, {2: 1, 3: 1}, True),
+    ),
+)
+def test_load_intset_into_map(intset, initial, expected, do_diff):
+    mapping = MagicMock()
+    mapping.items.return_value = [(ctypes.c_int(k), ctypes.c_uint8(v)) for k, v in initial.items()]
+
+    load_intset_into_map(intset, mapping, do_diff)
+    assert expected == {
+        **({} if do_diff else initial),
+        **{
+            call_args[0][0].value: call_args[0][1].value
+            for call_args in mapping.__setitem__.call_args_list
+        },
+    }
+    if do_diff:
+        assert (set(initial) - intset) == {
+            call_args[0][0].value
+            for call_args in mapping.__delitem__.call_args_list
+        }

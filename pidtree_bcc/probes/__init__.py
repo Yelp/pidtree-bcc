@@ -4,6 +4,7 @@ import logging
 import os.path
 import platform
 import re
+import time
 from datetime import datetime
 from functools import lru_cache
 from multiprocessing import SimpleQueue
@@ -18,7 +19,9 @@ from jinja2 import Environment
 from jinja2 import FileSystemLoader
 
 from pidtree_bcc.config import enumerate_probe_configs
+from pidtree_bcc.containers import list_container_mnt_namespaces
 from pidtree_bcc.filtering import load_filters_into_map
+from pidtree_bcc.filtering import load_intset_into_map
 from pidtree_bcc.filtering import load_port_filters_into_map
 from pidtree_bcc.filtering import NET_FILTER_MAX_PORT_RANGES
 from pidtree_bcc.filtering import PortFilterMode
@@ -52,6 +55,8 @@ class BPFProbe:
     NET_FILTER_MAP_SIZE_MAX = 4 * 1024
     NET_FILTER_MAP_SIZE_SCALING = 512
     PORT_FILTER_MAP_NAME = 'port_filter_map'
+    MNTNS_FILTER_MAP_NAME = 'mntns_filter_map'
+    DEFAULT_CONTAINER_POLL_INTERVAL = 30  # seconds
 
     def __init__(
         self,
@@ -96,6 +101,12 @@ class BPFProbe:
         self.net_filter_mutex = Lock()
         if self.USES_DYNAMIC_FILTERS and config_change_queue:
             self.SIDECARS.append((self._poll_config_changes, (config_change_queue,)))
+        self.container_labels_filter = template_config.get('container_labels')
+        if self.container_labels_filter:
+            self.SIDECARS.append((
+                self._monitor_running_containers,
+                (template_config.get('container_poll_interval', self.DEFAULT_CONTAINER_POLL_INTERVAL),),
+            ))
 
     def build_probe_config(self, probe_config: dict, hotswap_only: bool = False) -> dict:
         """ Load probe configuration values
@@ -130,6 +141,7 @@ class BPFProbe:
                     self.NET_FILTER_MAP_SIZE_MAX,
                     round_nearest_multiple(len(self.net_filters), self.NET_FILTER_MAP_SIZE_SCALING, headroom=128),
                 )
+                template_config['MNTNS_FILTER_MAP_NAME'] = self.MNTNS_FILTER_MAP_NAME
         return template_config
 
     @lru_cache(maxsize=1)
@@ -199,6 +211,17 @@ class BPFProbe:
             self.build_probe_config(config_data, hotswap_only=True)
             self.reload_filters()
 
+    @never_crash
+    def _monitor_running_containers(self, poll_interval: int):
+        """ Polls running containers, filtering by label to keep mntns filtering map updated """
+        monitored_mntns = set()
+        while True:
+            mntns = list_container_mnt_namespaces(self.container_labels_filter)
+            if mntns != monitored_mntns:
+                monitored_mntns = mntns
+                load_intset_into_map(mntns, self.bpf[self.MNTNS_FILTER_MAP_NAME], True)
+            time.sleep(poll_interval)
+
     def reload_filters(self, is_init: bool = False):
         """ Load filters
 
@@ -211,12 +234,12 @@ class BPFProbe:
 
     def start_polling(self):
         """ Start infinite loop polling BPF events """
-        for func, args in self.SIDECARS:
-            Thread(target=func, args=args, daemon=True).start()
         self.bpf = BPF(
             text=self.expanded_bpf_text,
             cflags=['-Wno-macro-redefined'] if self._has_buggy_headers() else [],
         )
+        for func, args in self.SIDECARS:
+            Thread(target=func, args=args, daemon=True).start()
         if self.lost_event_telemetry > 0:
             extra_args = {'lost_cb': self._lost_event_callback}
             poll_func = self._poll_and_check_lost

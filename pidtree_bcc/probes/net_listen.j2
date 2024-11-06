@@ -17,6 +17,10 @@ struct listen_bind_t {
 
 {{ utils.get_proto_func() }}
 
+{% if container_labels %}
+{{ utils.mntns_filter_init(MNTNS_FILTER_MAP_NAME) }}
+{% endif %}
+
 static void net_listen_event(struct pt_regs *ctx)
 {
     u32 pid = bpf_get_current_pid_tgid();
@@ -61,6 +65,11 @@ int kprobe__inet_bind(
     const struct sockaddr *addr,
     int addrlen)
 {
+    {% if container_labels -%}
+    if (!is_mntns_included()) {
+        return 0;
+    }
+    {% endif -%}
     {% if exclude_random_bind -%}
     struct sockaddr_in* inet_addr = (struct sockaddr_in*)addr;
     if (inet_addr->sin_port == 0) {
@@ -86,6 +95,11 @@ int kretprobe__inet_bind(struct pt_regs *ctx)
 {% if 'tcp' in protocols -%}
 int kprobe__inet_listen(struct pt_regs *ctx, struct socket *sock, int backlog)
 {
+    {% if container_labels -%}
+    if (!is_mntns_included()) {
+        return 0;
+    }
+    {% endif -%}
     struct sock* sk = sock->sk;
     if (sk->__sk_common.skc_family == AF_INET) {
         u32 pid = bpf_get_current_pid_tgid();

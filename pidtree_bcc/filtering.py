@@ -5,6 +5,7 @@ from itertools import chain
 from typing import Any
 from typing import Iterable
 from typing import List
+from typing import Set
 from typing import Union
 
 from pidtree_bcc.ctypes_helper import ComparableCtStructure
@@ -131,6 +132,7 @@ def load_filters_into_map(filters: List[dict], ebpf_map: Any, do_diff: bool = Fa
                                     'include_ports': [789],     # optional
                                 }
     :param Any ebpf_map: reference to eBPF table where filters should be loaded.
+    :param bool do_diff: diff input with existing values, removing excess entries
     """
     leftovers = set(
         # The map returns keys using an auto-generated type.
@@ -179,6 +181,7 @@ def load_port_filters_into_map(
     :param List[Union[int, str]] filters: list of ports or port ranges
     :param PortFilterMode mode: include or exclude
     :param Any ebpf_map: array in which filters are loaded
+    :param bool do_diff: diff input with existing values, removing excess entries
     """
     if mode not in (PortFilterMode.include, PortFilterMode.exclude):
         raise ValueError('Invalid global port filtering mode: {}'.format(mode))
@@ -198,3 +201,17 @@ def load_port_filters_into_map(
         ebpf_map[ctypes.c_int(port)] = ctypes.c_uint8(0)
     # 0-element of the map holds the filtering mode
     ebpf_map[ctypes.c_int(0)] = ctypes.c_uint8(mode.value)
+
+
+def load_intset_into_map(intset: Set[int], ebpf_map: Any, do_diff: bool = False):
+    """ Loads set of int values into eBPF map
+
+    :param Set[int] intset: input values
+    :param Any ebpf_map: array in which filters are loaded
+    :param bool do_diff: diff input with existing values, removing excess entries
+    """
+    current_state = set((k.value for k, _ in ebpf_map.items()) if do_diff else [])
+    for val in intset:
+        ebpf_map[ctypes.c_int(val)] = ctypes.c_uint8(1)
+    for val in (current_state - intset):
+        del ebpf_map[ctypes.c_int(val)]
