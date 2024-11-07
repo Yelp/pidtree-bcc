@@ -24,7 +24,7 @@ from pidtree_bcc.yaml_loader import FileIncludeLoader
 
 HOTSWAP_CALLBACK_NAMESPACE = get_namespace('__change_callbacks')
 LOADED_CONFIG_FILES_NAMESPACE = get_namespace('__loaded_configs')
-HOT_SWAPPABLE_SETTINGS = ('filters', 'excludeports', 'includeports')
+HOT_SWAPPABLE_SETTINGS = ('filters', 'excludeports', 'includeports', 'container_labels')
 NON_PROBE_NAMESPACES = (DEFAULT_NAMESPACE, HOTSWAP_CALLBACK_NAMESPACE.name, LOADED_CONFIG_FILES_NAMESPACE.name)
 
 

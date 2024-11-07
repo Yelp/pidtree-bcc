@@ -15,8 +15,17 @@ struct connection_t {
 
 {{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, PORT_FILTER_MAP_NAME, size=NET_FILTER_MAP_SIZE, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
 
+{% if container_labels %}
+{{ utils.mntns_filter_init(MNTNS_FILTER_MAP_NAME) }}
+{% endif %}
+
 int kprobe__tcp_v4_connect(struct pt_regs *ctx, struct sock *sk)
 {
+    {% if container_labels -%}
+    if (!is_mntns_included()) {
+        return 0;
+    }
+    {% endif -%}
     u32 pid = bpf_get_current_pid_tgid();
     currsock.update(&pid, &sk);
     return 0;

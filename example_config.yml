@@ -23,6 +23,8 @@ _net_filters: &net_filters
 # Some configuration fields supported by all probes:
 #   filters: list of network filters (see above for schema); they act on the destination
 #            address for tcp_connect and udp_session, local listening address for net_listen
+#   container_labels: list of label filters to only capture events generated from processes in containers
+#   container_poll_interval: how often to poll for running containers (in seconds)
 #   excludeports: list of ports to be filtered out (cannot be used with includeports)
 #   includeports: list of ports for which events will be logged (filters out all the others) (cannot be used with excludeports)
 #   plugins: map of plugins to enable for the probe (check README for more details)
@@ -31,6 +33,8 @@ udp_session:
   filters: *net_filters
 tcp_connect:
   filters: *net_filters
+  container_labels:
+    - key=value
   plugins:
     sourceipmap:
       enabled: True

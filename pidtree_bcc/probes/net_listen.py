@@ -32,6 +32,7 @@ class NetListenProbe(BPFProbe):
         'ip_to_int': ip_to_int,
         'protocols': ['tcp'],
         'filters': [],
+        'container_labels': [],
         'excludeports': [],
         'includeports': [],
         'snapshot_periodicity': False,

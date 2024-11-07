@@ -22,6 +22,10 @@ BPF_HASH(tracing, u64, u8);
 
 {{ utils.get_proto_func() }}
 
+{% if container_labels %}
+{{ utils.mntns_filter_init(MNTNS_FILTER_MAP_NAME) }}
+{% endif %}
+
 // We probe only the entrypoint as looking at return codes doesn't have much value
 // since UDP does not do any checks for successfull communications. The only errors
 // which may arise from this function would be due to the kernel running out of memory,
@@ -29,6 +33,12 @@ BPF_HASH(tracing, u64, u8);
 int kprobe__udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg, size_t size)
 {
     if(sk->__sk_common.skc_family != AF_INET) return 0;
+
+    {% if container_labels -%}
+    if (!is_mntns_included()) {
+        return 0;
+    }
+    {% endif -%}
 
     // Destination info will either be embedded in the socket if `connect`
     // was called or specified in the message

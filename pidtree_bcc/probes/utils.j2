@@ -156,3 +156,30 @@ enum {
 #define BPF_PSEUDO_FUNC 4
 {%- endif %}
 {%- endmacro %}
+
+{% macro mntns_filter_init(mntns_filter_map_name, size=512) -%}
+
+/* Original source: https://github.com/iovisor/bcc/blob/master/tools/mountsnoop.py#L32-L52
+ * `struct mnt_namespace` is defined in fs/mount.h, which is private
+ * to the VFS and not installed in any kernel-devel packages. So, let's
+ * duplicate the important part of the definition. There are actually
+ * more members in the real struct, but we don't need them, and they're
+ * more likely to change.
+ */
+struct mnt_namespace {
+    // This field was removed in https://github.com/torvalds/linux/commit/1a7b8969e664d6af328f00fe6eb7aabd61a71d13
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+    atomic_t count;
+    #endif
+    struct ns_common ns;
+};
+
+BPF_HASH({{ mntns_filter_map_name }}, u64, bool, {{ size }});
+
+static inline bool is_mntns_included() {
+    struct task_struct *task;
+    task = (struct task_struct *)bpf_get_current_task();
+    u64 mntns_id = task->nsproxy->mnt_ns->ns.inum;
+    return {{ mntns_filter_map_name }}.lookup(&mntns_id) != NULL;
+}
+{%- endmacro %}
