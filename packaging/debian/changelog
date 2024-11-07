@@ -1,3 +1,9 @@
+pidtree-bcc (2.5.0) unstable; urgency=medium
+
+  * Support selecting events from specific containers
+
+ -- Matteo Piano <mpiano@yelp.com>  Thu, 07 Nov 2024 02:18:36 -0800
+
 pidtree-bcc (2.4.1) unstable; urgency=medium
 
   * Fix shutdown behaviour of remote config fetcher
