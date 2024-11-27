@@ -89,7 +89,7 @@ class UDPSessionProbe(BPFProbe):
                     }
                     for addr_port, begin_count in session_data['destinations'].items()
                 ]
-                return session_data
+                return self.enrich_container_name(event, session_data)
 
     @never_crash
     def _session_expiration_worker(self, session_max_duration: int):

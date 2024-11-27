@@ -11,6 +11,9 @@ struct listen_bind_t {
     u32 laddr;
     u16 port;
     u8  protocol;
+{%- if container_labels %}
+    u64 mntns_id;
+{% endif -%}
 };
 
 {{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, PORT_FILTER_MAP_NAME, size=NET_FILTER_MAP_SIZE, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
@@ -54,6 +57,9 @@ static void net_listen_event(struct pt_regs *ctx)
     listen.port = port;
     listen.laddr = laddr;
     listen.protocol = get_socket_protocol(sk);
+    {% if container_labels -%}
+    listen.mntns_id = get_mntns_id();
+    {% endif -%}
     events.perf_submit(ctx, &listen, sizeof(listen));
     currsock.delete(&pid);
 }

@@ -176,10 +176,14 @@ struct mnt_namespace {
 
 BPF_HASH({{ mntns_filter_map_name }}, u64, bool, {{ size }});
 
-static inline bool is_mntns_included() {
+static inline u64 get_mntns_id() {
     struct task_struct *task;
     task = (struct task_struct *)bpf_get_current_task();
-    u64 mntns_id = task->nsproxy->mnt_ns->ns.inum;
+    return task->nsproxy->mnt_ns->ns.inum;
+}
+
+static inline bool is_mntns_included() {
+    u64 mntns_id = get_mntns_id();
     return {{ mntns_filter_map_name }}.lookup(&mntns_id) != NULL;
 }
 {%- endmacro %}

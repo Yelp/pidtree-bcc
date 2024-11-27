@@ -30,15 +30,18 @@ class TCPConnectProbe(BPFProbe):
         except Exception:
             error = traceback.format_exc()
             proctree = []
-        return {
-            'pid': event.pid,
-            'proctree': proctree,
-            # We're turning a little-endian insigned long ('<L')
-            # representation of the destination address sent from the
-            # kernel to a python `int` and then turning that into a string
-            # representation of an IP address:
-            'daddr': int_to_ip(event.daddr),
-            'saddr': int_to_ip(event.saddr),
-            'port': event.dport,
-            'error': error,
-        }
+        return self.enrich_container_name(
+            event,
+            {
+                'pid': event.pid,
+                'proctree': proctree,
+                # We're turning a little-endian insigned long ('<L')
+                # representation of the destination address sent from the
+                # kernel to a python `int` and then turning that into a string
+                # representation of an IP address:
+                'daddr': int_to_ip(event.daddr),
+                'saddr': int_to_ip(event.saddr),
+                'port': event.dport,
+                'error': error,
+            },
+        )

@@ -203,15 +203,20 @@ def load_port_filters_into_map(
     ebpf_map[ctypes.c_int(0)] = ctypes.c_uint8(mode.value)
 
 
-def load_intset_into_map(intset: Set[int], ebpf_map: Any, do_diff: bool = False):
+def load_intset_into_map(intset: Set[int], ebpf_map: Any, do_diff: bool = False, delete: bool = False):
     """ Loads set of int values into eBPF map
 
     :param Set[int] intset: input values
     :param Any ebpf_map: array in which filters are loaded
     :param bool do_diff: diff input with existing values, removing excess entries
+    :param bool delete: remove values rather than adding them
     """
-    current_state = set((k.value for k, _ in ebpf_map.items()) if do_diff else [])
-    for val in intset:
-        ebpf_map[ctypes.c_int(val)] = ctypes.c_uint8(1)
-    for val in (current_state - intset):
+    if delete:
+        to_delete = intset
+    else:
+        current_state = set((k.value for k, _ in ebpf_map.items()) if do_diff else [])
+        to_delete = current_state - intset
+        for val in intset:
+            ebpf_map[ctypes.c_int(val)] = ctypes.c_uint8(1)
+    for val in to_delete:
         del ebpf_map[ctypes.c_int(val)]

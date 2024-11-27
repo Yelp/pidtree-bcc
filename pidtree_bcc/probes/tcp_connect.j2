@@ -11,6 +11,9 @@ struct connection_t {
     u32 daddr;
     u32 saddr;
     u16 dport;
+{%- if container_labels %}
+    u64 mntns_id;
+{% endif -%}
 };
 
 {{ utils.net_filter_trie_init(NET_FILTER_MAP_NAME, PORT_FILTER_MAP_NAME, size=NET_FILTER_MAP_SIZE, max_ports=NET_FILTER_MAX_PORT_RANGES) }}
@@ -64,6 +67,9 @@ int kretprobe__tcp_v4_connect(struct pt_regs *ctx)
     connection.dport = dport;
     connection.daddr = daddr;
     connection.saddr = saddr;
+    {% if container_labels -%}
+    connection.mntns_id = get_mntns_id();
+    {% endif -%}
 
     events.perf_submit(ctx, &connection, sizeof(connection));
 

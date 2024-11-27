@@ -89,14 +89,17 @@ class NetListenProbe(BPFProbe):
         except Exception:
             error = traceback.format_exc()
             proctree = []
-        return {
-            'pid': event.pid,
-            'port': event.port,
-            'proctree': proctree,
-            'laddr': int_to_ip(event.laddr),
-            'protocol': self.PROTO_MAP.get(event.protocol, 'unknown'),
-            'error': error,
-        }
+        return self.enrich_container_name(
+            event,
+            {
+                'pid': event.pid,
+                'port': event.port,
+                'proctree': proctree,
+                'laddr': int_to_ip(event.laddr),
+                'protocol': self.PROTO_MAP.get(event.protocol, 'unknown'),
+                'error': error,
+            },
+        )
 
     def _filter_net_namespace(self, pid: int) -> bool:
         """ Check if network namespace for process is filtered

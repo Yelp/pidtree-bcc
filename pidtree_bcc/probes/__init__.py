@@ -19,7 +19,9 @@ from jinja2 import Environment
 from jinja2 import FileSystemLoader
 
 from pidtree_bcc.config import enumerate_probe_configs
+from pidtree_bcc.containers import ContainerEventType
 from pidtree_bcc.containers import list_container_mnt_namespaces
+from pidtree_bcc.containers import monitor_container_mnt_namespaces
 from pidtree_bcc.filtering import load_filters_into_map
 from pidtree_bcc.filtering import load_intset_into_map
 from pidtree_bcc.filtering import load_port_filters_into_map
@@ -56,7 +58,7 @@ class BPFProbe:
     NET_FILTER_MAP_SIZE_SCALING = 512
     PORT_FILTER_MAP_NAME = 'port_filter_map'
     MNTNS_FILTER_MAP_NAME = 'mntns_filter_map'
-    DEFAULT_CONTAINER_POLL_INTERVAL = 30  # seconds
+    CONTAINER_BASELINE_INTERVAL = 30 * 60  # seconds
 
     def __init__(
         self,
@@ -103,10 +105,9 @@ class BPFProbe:
             self.SIDECARS.append((self._poll_config_changes, (config_change_queue,)))
         self.container_labels_filter = template_config.get('container_labels')
         if self.container_labels_filter:
-            self.SIDECARS.append((
-                self._monitor_running_containers,
-                (template_config.get('container_poll_interval', self.DEFAULT_CONTAINER_POLL_INTERVAL),),
-            ))
+            self.container_name_mapping = {}
+            self.container_idns_mapping = {}
+            self.SIDECARS.append((self._monitor_running_containers, tuple()))
 
     def build_probe_config(self, probe_config: dict, hotswap_only: bool = False) -> dict:
         """ Load probe configuration values
@@ -212,15 +213,38 @@ class BPFProbe:
             self.reload_filters()
 
     @never_crash
-    def _monitor_running_containers(self, poll_interval: int):
+    def _monitor_running_containers(self):
         """ Polls running containers, filtering by label to keep mntns filtering map updated """
-        monitored_mntns = set()
-        while True:
-            mntns = list_container_mnt_namespaces(self.container_labels_filter)
-            if mntns != monitored_mntns:
-                monitored_mntns = mntns
-                load_intset_into_map(mntns, self.bpf[self.MNTNS_FILTER_MAP_NAME], True)
-            time.sleep(poll_interval)
+        last_baseline = time.time()
+        self._running_containers_baseline()
+        for mntns_info in monitor_container_mnt_namespaces(self.container_labels_filter):
+            if (now := time.time()) - last_baseline > self.CONTAINER_BASELINE_INTERVAL:
+                self._running_containers_baseline()
+                last_baseline = now
+                continue
+            if mntns_info.event_type == ContainerEventType.stop:
+                if (ns_id := self.container_idns_mapping.pop(mntns_info.container_id, None)):
+                    load_intset_into_map(
+                        {ns_id},
+                        self.bpf[self.MNTNS_FILTER_MAP_NAME],
+                        delete=True,
+                    )
+                    self.container_name_mapping.pop(ns_id, None)
+                continue
+            load_intset_into_map({mntns_info.ns_id}, self.bpf[self.MNTNS_FILTER_MAP_NAME])
+            self.container_name_mapping[mntns_info.ns_id] = mntns_info.container_name
+            self.container_idns_mapping[mntns_info.container_id] = mntns_info.ns_id
+
+    def _running_containers_baseline(self):
+        """ Create baseline for monitored containers """
+        ns_infos = list_container_mnt_namespaces(self.container_labels_filter)
+        load_intset_into_map(
+            {mntns_info.ns_id for mntns_info in ns_infos},
+            self.bpf[self.MNTNS_FILTER_MAP_NAME],
+            do_diff=True,
+        )
+        self.container_name_mapping.update({mntns_info.ns_id: mntns_info.container_name for mntns_info in ns_infos})
+        self.container_idns_mapping.update({mntns_info.container_id: mntns_info.ns_id for mntns_info in ns_infos})
 
     def reload_filters(self, is_init: bool = False):
         """ Load filters
@@ -251,6 +275,12 @@ class BPFProbe:
         self.bpf['events'].open_perf_buffer(self._process_events, **extra_args)
         while True:
             poll_func()
+
+    def enrich_container_name(self, event: Any, formatted_event: dict) -> dict:
+        """ Updates in place event dict with name of container related to the event """
+        if self.container_labels_filter:
+            formatted_event['container_name'] = self.container_name_mapping.get(event.mntns_id, '')
+        return formatted_event
 
     def enrich_event(self, event: Any) -> dict:
         """ Transform raw BPF event data into dictionary,
