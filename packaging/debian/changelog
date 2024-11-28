@@ -1,3 +1,9 @@
+pidtree-bcc (2.6.0) unstable; urgency=medium
+
+  * Improve handling of container tracing
+
+ -- Matteo Piano <mpiano@yelp.com>  Thu, 28 Nov 2024 01:49:53 -0800
+
 pidtree-bcc (2.5.0) unstable; urgency=medium
 
   * Support selecting events from specific containers
