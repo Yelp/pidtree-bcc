@@ -13,6 +13,9 @@ struct udp_session_event {
     u64 sock_pointer;
     u32 daddr;
     u16 dport;
+{%- if container_labels %}
+    u64 mntns_id;
+{% endif -%}
 };
 
 BPF_PERF_OUTPUT(events);
@@ -62,6 +65,9 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg
     session.sock_pointer = sock_pointer;
     bpf_probe_read(&session.daddr, sizeof(u32), &daddr);
     bpf_probe_read(&session.dport, sizeof(u16), &dport);
+    {% if container_labels -%}
+    session.mntns_id = get_mntns_id();
+    {% endif -%}
     events.perf_submit(ctx, &session, sizeof(session));
     if(trace_flag == SESSION_START) {
         // We don't care about the actual value in the map
@@ -85,6 +91,9 @@ int kprobe__inet_release(struct pt_regs *ctx, struct socket *sock) {
         session.pid = pid;
         session.type = SESSION_END;
         session.sock_pointer = sock_pointer;
+        {% if container_labels -%}
+        session.mntns_id = get_mntns_id();
+        {% endif -%}
         events.perf_submit(ctx, &session, sizeof(session));
         tracing.delete(&sock_pointer);
     }
