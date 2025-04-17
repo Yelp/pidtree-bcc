@@ -1,3 +1,9 @@
+pidtree-bcc (2.6.2) unstable; urgency=medium
+
+  * Make sure event tailing is line-buffered
+
+ -- Matteo Piano <mpiano@yelp.com>  Thu, 17 Apr 2025 09:29:29 -0700
+
 pidtree-bcc (2.6.1) unstable; urgency=medium
 
   * Better support containerd namespaces
