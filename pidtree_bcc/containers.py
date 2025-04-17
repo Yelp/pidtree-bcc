@@ -17,6 +17,10 @@ from typing import Set
 from typing import Tuple
 
 
+CONTAINERD_NAMESPACE_VAR = 'CONTAINERD_NAMESPACE'
+DEFAULT_CONTAINERD_NAMESPACE = 'k8s.io'
+
+
 class ContainerEventType(enum.Enum):
     start = 'start'
     stop = 'stop'
@@ -47,7 +51,15 @@ def detect_containerizer_client() -> str:
 
     :return: CLI tool to query containerizer
     """
-    return 'nerdctl' if os.path.exists('/var/run/containerd/io.containerd.runtime.v2.task/k8s.io') else 'docker'
+    containerd_namespace = os.getenv(CONTAINERD_NAMESPACE_VAR, DEFAULT_CONTAINERD_NAMESPACE)
+    containerd_metadata_path = f'/var/run/containerd/io.containerd.runtime.v2.task/{containerd_namespace}'
+    if os.path.exists(containerd_metadata_path):
+        # ensure namespace env var is set for future subprocess invocations
+        os.environ[CONTAINERD_NAMESPACE_VAR] = containerd_namespace
+        cli_tool = 'nerdctl'
+    else:
+        cli_tool = 'docker'
+    return cli_tool
 
 
 def list_containers(filter_labels: List[str] = None) -> List[str]:
