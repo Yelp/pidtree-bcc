@@ -216,6 +216,8 @@ def _tail_subprocess_json(cmd: str, shell: bool = False) -> Generator[dict, None
             stdout=subprocess.PIPE,
             encoding='utf-8',
             shell=shell,
+            text=True,
+            bufsize=1,  # line buffered
         ) as proc:
             for line in proc.stdout:
                 if not line.strip():
@@ -241,7 +243,7 @@ def monitor_container_events() -> Generator[ContainerEvent, None, None]:
         )
     else:
         use_shell = True
-        event_filters = "| grep -E '/tasks/(start|delete)'"
+        event_filters = "| grep --line-buffered -E '/tasks/(start|delete)'"
 
         def event_extractor(event): return ContainerEvent(
             ContainerEventType.start if event.get('Topic', '').endswith('start') else ContainerEventType.stop,
