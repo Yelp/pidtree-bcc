@@ -217,6 +217,7 @@ class BPFProbe:
         """ Polls running containers, filtering by label to keep mntns filtering map updated """
         last_baseline = time.time()
         self._running_containers_baseline()
+        logging.info(f'Done initial scanning for containers to attach to (found: {len(self.container_name_mapping)})')
         for mntns_info in monitor_container_mnt_namespaces(self.container_labels_filter):
             if (now := time.time()) - last_baseline > self.CONTAINER_BASELINE_INTERVAL:
                 self._running_containers_baseline()
@@ -231,6 +232,7 @@ class BPFProbe:
                     )
                     self.container_name_mapping.pop(ns_id, None)
                 continue
+            logging.info(f'Attaching to container: {mntns_info.container_name}')
             load_intset_into_map({mntns_info.ns_id}, self.bpf[self.MNTNS_FILTER_MAP_NAME])
             self.container_name_mapping[mntns_info.ns_id] = mntns_info.container_name
             self.container_idns_mapping[mntns_info.container_id] = mntns_info.ns_id
