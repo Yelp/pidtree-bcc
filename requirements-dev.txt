@@ -4,7 +4,7 @@ backports.entry-points-selectable==1.1.0
 cfgv==3.3.1
 coverage==6.2
 distlib==0.3.4
-filelock==3.0.12
+filelock==3.20.1
 identify==2.3.0
 iniconfig==1.1.1
 nodeenv==1.6.0
