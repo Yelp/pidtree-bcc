@@ -17,4 +17,4 @@ pyparsing==2.4.7
 pytest==6.2.5
 requirements-tools==2.0.0
 toml==0.10.2
-virtualenv==20.6.0
+virtualenv==20.36.1
