@@ -7,6 +7,7 @@ import sys
 import time
 from functools import partial
 from multiprocessing import Process
+from multiprocessing import set_start_method
 from multiprocessing import SimpleQueue
 from threading import Thread
 from typing import Any
@@ -217,6 +218,7 @@ def main(args: argparse.Namespace):
 
 if __name__ == '__main__':
     restart_attempts = 0
+    set_start_method('fork')  #  ensures consistent behaviour in python >=3.14
     while restart_attempts < MAX_RESTARTS:
         try:
             main(parse_args())

@@ -127,6 +127,7 @@ class BPFProbe:
             else:
                 template_config.pop('plugins', None)
             template_config['PATCH_BUGGY_HEADERS'] = self._has_buggy_headers()
+            template_config['BCC_VERSION'] = int(bccversion.split('.')[1])
         if self.USES_DYNAMIC_FILTERS:
             self.net_filters = template_config['filters']
             self.global_filters = (
@@ -157,7 +158,10 @@ class BPFProbe:
         kernel_version = platform.uname().release
         kmajor, kminor = map(int, kernel_version.split('.', 2)[:2])
         _, bccminor, _ = map(int, bccversion.split('.'))
-        return bccminor < 23 and ((kmajor == 5 and kminor >= 15) or kmajor > 5)
+        return (
+            bccminor < 23 and ((kmajor == 5 and kminor >= 15) or kmajor > 5)
+            or bccminor < 37 and kmajor > 6
+        )
 
     def _process_events(self, cpu: Any, data: Any, size: Any, from_bpf: bool = True):
         """ BPF event callback
@@ -262,7 +266,15 @@ class BPFProbe:
         """ Start infinite loop polling BPF events """
         self.bpf = BPF(
             text=self.expanded_bpf_text,
-            cflags=['-Wno-macro-redefined'] if self._has_buggy_headers() else [],
+            cflags=(
+                (['-Wno-macro-redefined'] if self._has_buggy_headers() else [])
+                + (
+                    # https://github.com/iovisor/bcc/pull/5487
+                    ['-fms-extensions', '-Wno-microsoft-anon-tag']
+                    if int(platform.uname().release.split('.', 1)[0]) > 6
+                    else []
+                )
+            ),
         )
         for func, args in self.SIDECARS:
             Thread(target=func, args=args, daemon=True).start()
