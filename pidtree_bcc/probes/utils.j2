@@ -139,8 +139,21 @@ static inline bool is_port_globally_filtered(u16 port) {
 }
 {%- endmacro %}
 
-{% macro patch_buggy_headers(do_patch=False) -%}
+{% macro patch_buggy_headers(do_patch=False, bcc_version=18) -%}
 {% if do_patch -%}
+{% if bcc_version >= 30 -%}
+// Missing values to support kernel 7.0 (from include/uapi/linux/bpf.h)
+enum {
+    BPF_F_CPU      = 8,
+    BPF_F_ALL_CPUS = 16,
+};
+#define BPF_TRACE_FSESSION 0
+{% if bcc_version < 36 -%}
+struct bpf_task_work {
+	__u64 __opaque;
+} __attribute__((aligned(8)));
+{%- endif %}
+{% else -%}
 // This is just a work around to some issues with latest kernels:
 // - https://github.com/iovisor/bcc/issues/3366
 // - https://github.com/iovisor/bcc/issues/3993
@@ -154,6 +167,7 @@ enum {
 };
 // Missing header value in bcc <0.19.0 (Ubuntu Jammy comes with 0.18.0)
 #define BPF_PSEUDO_FUNC 4
+{%- endif %}
 {%- endif %}
 {%- endmacro %}
 
