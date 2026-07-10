@@ -1,3 +1,9 @@
+pidtree-bcc (2.7.1) unstable; urgency=medium
+
+  * Bump python dependencies
+
+ -- Matteo Piano <mpiano@yelp.com>  Fri, 10 Jul 2026 07:29:08 -0700
+
 pidtree-bcc (2.7.0) unstable; urgency=medium
 
   * Support for Ubuntu Resolute and kernel 7.0
