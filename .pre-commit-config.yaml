@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
+    rev: v6.0.0
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
@@ -13,20 +13,18 @@ repos:
     -   id: double-quote-string-fixer
     -   id: name-tests-test
     -   id: check-added-large-files
-    -   id: check-byte-order-marker
+    -   id: fix-byte-order-marker
     -   id: requirements-txt-fixer
-    -   id: fix-encoding-pragma
-        args: ['--remove']
 -   repo: https://github.com/pre-commit/mirrors-autopep8
-    rev: v1.5
+    rev: v2.0.4
     hooks:
     -   id: autopep8
--   repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.3
+-   repo: https://github.com/pycqa/flake8
+    rev: 7.3.0
     hooks:
     -   id: flake8
 -   repo: https://github.com/asottile/reorder_python_imports
-    rev: v2.0.0
+    rev: v3.16.0
     hooks:
     -   id: reorder-python-imports
         args: [
@@ -34,17 +32,16 @@ repos:
             '--remove-import', 'from __future__ import unicode_literals',
         ]
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v2.7.2
+    rev: v3.21.2
     hooks:
     -   id: pyupgrade
         args: [--py3-plus]
 -   repo: https://github.com/asottile/add-trailing-comma
-    rev: v2.0.1
+    rev: v4.0.0
     hooks:
     -   id: add-trailing-comma
-        args: [--py35-plus]
 -   repo: https://github.com/Yelp/detect-secrets
-    rev: v0.14.3
+    rev: v1.5.0
     hooks:
     -   id: detect-secrets
         args: ['--baseline', '.secrets.baseline']

@@ -218,7 +218,7 @@ def main(args: argparse.Namespace):
 
 if __name__ == '__main__':
     restart_attempts = 0
-    set_start_method('fork')  #  ensures consistent behaviour in python >=3.14
+    set_start_method('fork')  # ensures consistent behaviour in python >=3.14
     while restart_attempts < MAX_RESTARTS:
         try:
             main(parse_args())
