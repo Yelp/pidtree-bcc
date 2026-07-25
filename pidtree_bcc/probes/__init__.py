@@ -4,6 +4,7 @@ import logging
 import os.path
 import platform
 import re
+import socket
 import time
 from datetime import datetime
 from functools import lru_cache
@@ -130,6 +131,7 @@ class BPFProbe:
             template_config['BCC_VERSION'] = int(bccversion.split('.')[1])
         if self.USES_DYNAMIC_FILTERS:
             self.net_filters = template_config['filters']
+            self.dns_filters = template_config['dns_filters']
             self.global_filters = (
                 (template_config['includeports'], PortFilterMode.include)
                 if template_config.get('includeports')
@@ -259,8 +261,36 @@ class BPFProbe:
         """
         with self.net_filter_mutex:
             logging.info('[{}] {}oading filters into BPF maps'.format(self.probe_name, 'L' if is_init else 'Rel'))
-            load_filters_into_map(self.net_filters, self.bpf[self.NET_FILTER_MAP_NAME], not is_init)
+            all_filters = self.resolve_domains(d['domain']for d in self.dns_filters) + self.net_filters
+            load_filters_into_map(all_filters, self.bpf[self.NET_FILTER_MAP_NAME], not is_init)
             load_port_filters_into_map(*self.global_filters, self.bpf[self.PORT_FILTER_MAP_NAME], not is_init)
+
+    def resolve_domain_to_ips(self, domain):
+        try:
+            record = socket.getaddrinfo(domain, None)
+        except OSError:
+            return []
+        return list(set(
+            sockaddr[0]
+            for _, _, _, _, sockaddr in record
+        ))
+
+    def resolve_domains(self, domains):
+        """
+        Resolve domain name into IPv4 addresses. Then reformat as network mask /32.
+        """
+        dns_filters = []
+        for domain in domains:
+            ips = self.resolve_domain_to_ips(domain)
+            for ip in ips:
+                dns_filters.append(
+                    {
+                        'description': f'Resolved {domain}',
+                        'network': ip,
+                        'network_mask': '255.255.255.255',
+                    }
+                )
+        return dns_filters
 
     def start_polling(self):
         """ Start infinite loop polling BPF events """
