@@ -267,7 +267,7 @@ class BPFProbe:
 
     def resolve_domain_to_ips(self, domain):
         try:
-            record = socket.getaddrinfo(domain, None)
+            record = socket.getaddrinfo(domain, None, socket.AF_INET)
         except OSError:
             return []
         return list(set(
