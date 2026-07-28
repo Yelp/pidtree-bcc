@@ -111,6 +111,20 @@ def netmask_to_prefixlen(netmask: str) -> int:
     return ipaddress.ip_network('0.0.0.0/{}'.format(netmask)).prefixlen
 
 
+def resolve_domain(domain: str) -> List[str]:
+    """ Resolve domain name. Never raises errors.
+
+    :param str domain: domain name
+    :return: list of IPs
+    """
+    try:
+        _, _, ips = socket.gethostbyname_ex(domain)
+        return ips
+    except Exception as e:
+        logging.warning(f'Failed resolving {domain}: {e}')
+    return []
+
+
 def never_crash(func: Callable) -> Callable:
     """ Decorator for Thread targets which ensures the thread keeps
     running by chatching any exception.

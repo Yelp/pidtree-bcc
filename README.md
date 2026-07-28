@@ -163,6 +163,9 @@ allows to specify a list of ports or port ranges to exclude from event capturing
 available for all currently implement probes (`tcp_connect`, `net_listen` and `udp_session`) and are mutually
 exclusive. If both are specified for a single probe, `includeports` will have precedence.
 
+It is also possible to exclude remote addresses based on DNS resolution using the `dns_filters` configuration
+key. This is only available for the `tcp_connect` and `udp_session` probes.
+
 There are times in which the configuration may get a bit too verbose, and to address that it is
 possible to split it into multiple files which can then be loaded using the `!include` custom
 YAML constructor ([example](./itest/config_autoreload.yml)).

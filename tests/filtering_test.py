@@ -1,11 +1,13 @@
 import ctypes
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
 from pidtree_bcc.filtering import CFilterKey
 from pidtree_bcc.filtering import CFilterValue
 from pidtree_bcc.filtering import CPortRange
+from pidtree_bcc.filtering import generate_filters_from_dns
 from pidtree_bcc.filtering import load_filters_into_map
 from pidtree_bcc.filtering import load_intset_into_map
 from pidtree_bcc.filtering import load_port_filters_into_map
@@ -182,3 +184,29 @@ def test_load_intset_into_map(intset, initial, expected, do_diff):
             call_args[0][0].value
             for call_args in mapping.__delitem__.call_args_list
         }
+
+
+@patch('pidtree_bcc.utils.socket.gethostbyname_ex')
+def test_generate_filters_from_dns(mock_gethostbyname_ex):
+    def side_effect(domain):
+        if domain == 'a.example.com':
+            return ('a.example.com', [], ['1.2.3.4', '5.6.7.8'])
+        if domain == 'b.example.com':
+            return ('b.example.com', [], ['9.9.9.9'])
+        raise OSError('DNS failed')
+
+    mock_gethostbyname_ex.side_effect = side_effect
+    assert generate_filters_from_dns(['a.example.com', 'b.example.com', 'bad.example.com']) == [
+        {
+            'network': '1.2.3.4',
+            'network_mask': '255.255.255.255',
+        },
+        {
+            'network': '5.6.7.8',
+            'network_mask': '255.255.255.255',
+        },
+        {
+            'network': '9.9.9.9',
+            'network_mask': '255.255.255.255',
+        },
+    ]

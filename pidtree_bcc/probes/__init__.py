@@ -7,11 +7,13 @@ import re
 import time
 from datetime import datetime
 from functools import lru_cache
+from itertools import chain
 from multiprocessing import SimpleQueue
 from threading import Lock
 from threading import Thread
 from typing import Any
 from typing import Mapping
+from typing import Set
 
 from bcc import __version__ as bccversion
 from bcc import BPF
@@ -22,6 +24,7 @@ from pidtree_bcc.config import enumerate_probe_configs
 from pidtree_bcc.containers import ContainerEventType
 from pidtree_bcc.containers import list_container_mnt_namespaces
 from pidtree_bcc.containers import monitor_container_mnt_namespaces
+from pidtree_bcc.filtering import generate_filters_from_dns
 from pidtree_bcc.filtering import load_filters_into_map
 from pidtree_bcc.filtering import load_intset_into_map
 from pidtree_bcc.filtering import load_port_filters_into_map
@@ -30,6 +33,7 @@ from pidtree_bcc.filtering import PortFilterMode
 from pidtree_bcc.plugins import load_plugins
 from pidtree_bcc.utils import find_subclass
 from pidtree_bcc.utils import never_crash
+from pidtree_bcc.utils import resolve_domain
 from pidtree_bcc.utils import round_nearest_multiple
 
 
@@ -59,6 +63,7 @@ class BPFProbe:
     PORT_FILTER_MAP_NAME = 'port_filter_map'
     MNTNS_FILTER_MAP_NAME = 'mntns_filter_map'
     CONTAINER_BASELINE_INTERVAL = 30 * 60  # seconds
+    DNS_POLLING_INTERVAL = 60 * 60  # seconds
 
     def __init__(
         self,
@@ -108,6 +113,8 @@ class BPFProbe:
             self.container_name_mapping = {}
             self.container_idns_mapping = {}
             self.SIDECARS.append((self._monitor_running_containers, tuple()))
+        if self.USES_DYNAMIC_FILTERS and self.dns_filters:
+            self.SIDECARS.append((self._poll_dns_changes, tuple()))
 
     def build_probe_config(self, probe_config: dict, hotswap_only: bool = False) -> dict:
         """ Load probe configuration values
@@ -130,6 +137,7 @@ class BPFProbe:
             template_config['BCC_VERSION'] = int(bccversion.split('.')[1])
         if self.USES_DYNAMIC_FILTERS:
             self.net_filters = template_config['filters']
+            self.dns_filters = set(template_config.get('dns_filters', []))
             self.global_filters = (
                 (template_config['includeports'], PortFilterMode.include)
                 if template_config.get('includeports')
@@ -217,6 +225,19 @@ class BPFProbe:
             self.reload_filters()
 
     @never_crash
+    def _poll_dns_changes(self):
+        """ Polls DNS checking if there were any resolution changes for DNS filters """
+        def __poller() -> Set[str]:
+            return set(chain.from_iterable(map(resolve_domain, self.dns_filters)))
+        baseline = __poller()
+        while True:
+            time.sleep(self.DNS_POLLING_INTERVAL)
+            current = __poller()
+            if current != baseline:
+                self.reload_filters()
+                baseline = current
+
+    @never_crash
     def _monitor_running_containers(self):
         """ Polls running containers, filtering by label to keep mntns filtering map updated """
         last_baseline = time.time()
@@ -259,7 +280,8 @@ class BPFProbe:
         """
         with self.net_filter_mutex:
             logging.info('[{}] {}oading filters into BPF maps'.format(self.probe_name, 'L' if is_init else 'Rel'))
-            load_filters_into_map(self.net_filters, self.bpf[self.NET_FILTER_MAP_NAME], not is_init)
+            all_filters = self.net_filters + generate_filters_from_dns(self.dns_filters)
+            load_filters_into_map(all_filters, self.bpf[self.NET_FILTER_MAP_NAME], not is_init)
             load_port_filters_into_map(*self.global_filters, self.bpf[self.PORT_FILTER_MAP_NAME], not is_init)
 
     def start_polling(self):
