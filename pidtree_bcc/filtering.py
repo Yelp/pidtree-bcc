@@ -12,6 +12,7 @@ from pidtree_bcc.ctypes_helper import ComparableCtStructure
 from pidtree_bcc.ctypes_helper import create_comparable_array_type
 from pidtree_bcc.utils import ip_to_int
 from pidtree_bcc.utils import netmask_to_prefixlen
+from pidtree_bcc.utils import resolve_domain
 
 
 NET_FILTER_MAX_PORT_RANGES = 8
@@ -220,3 +221,19 @@ def load_intset_into_map(intset: Set[int], ebpf_map: Any, do_diff: bool = False,
             ebpf_map[ctypes.c_int(val)] = ctypes.c_uint8(1)
     for val in to_delete:
         del ebpf_map[ctypes.c_int(val)]
+
+
+def generate_filters_from_dns(domains: List[str]) -> List[dict]:
+    """ Generate network filters from domain names
+
+    :param List[str] domains: list of domains
+    :return: list of filter configs
+    """
+    return [
+        {
+            'network': ip_addr,
+            'network_mask': '255.255.255.255',
+        }
+        for domain in domains
+        for ip_addr in resolve_domain(domain)
+    ]
