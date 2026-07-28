@@ -267,13 +267,10 @@ class BPFProbe:
 
     def resolve_domain_to_ips(self, domain):
         try:
-            record = socket.getaddrinfo(domain, None, socket.AF_INET)
+            _, _, ips = socket.gethostbyname_ex(domain)
+            return ips
         except OSError:
             return []
-        return list(set(
-            sockaddr[0]
-            for _, _, _, _, sockaddr in record
-        ))
 
     def resolve_domains(self, domains):
         """
