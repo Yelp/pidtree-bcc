@@ -168,7 +168,7 @@ class BPFProbe:
         _, bccminor, _ = map(int, bccversion.split('.'))
         return (
             bccminor < 23 and ((kmajor == 5 and kminor >= 15) or kmajor > 5)
-            or bccminor < 37 and kmajor > 6
+            or bccminor < 37 and ((kmajor == 6 and kminor > 12) or kmajor > 6)
         )
 
     def _process_events(self, cpu: Any, data: Any, size: Any, from_bpf: bool = True):
