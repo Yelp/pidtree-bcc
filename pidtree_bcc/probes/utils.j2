@@ -152,6 +152,11 @@ enum {
 struct bpf_task_work {
 	__u64 __opaque;
 } __attribute__((aligned(8)));
+
+#ifndef BPF_LOAD_ACQ
+#define BPF_LOAD_ACQ	0x100	/* load-acquire */
+#define BPF_STORE_REL	0x110	/* store-release */
+#endif
 {%- endif %}
 {% else -%}
 // This is just a work around to some issues with latest kernels:
